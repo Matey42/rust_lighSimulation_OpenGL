@@ -24,8 +24,12 @@ pub struct MovingObject {
     pub obj: SceneObject,
     /// Spotlights attached to this object (e.g., headlights).
     pub spotlights: Vec<Light>,
-    /// The *relative* direction offset of each spotlight (can be adjusted at runtime).
+    /// The *relative* position offset of each spotlight on the cube.
     pub spotlight_offsets: Vec<Vector3<f32>>,
+    /// Local-space aim offsets (yaw and pitch, in radians) for the headlights.
+    /// These rotate WITH the cube, like real car headlights.
+    pub light_aim_yaw: f32,
+    pub light_aim_pitch: f32,
     /// Current orbit angle (radians).
     pub orbit_angle: f32,
     /// Orbit radius.
@@ -39,8 +43,8 @@ pub struct MovingObject {
 impl MovingObject {
     pub fn new(obj: SceneObject, orbit_radius: f32) -> Self {
         // Two headlights: slightly left and right, pointing forward
-        let left_offset = Vector3::new(-0.4, -0.1, 1.0);
-        let right_offset = Vector3::new(0.4, -0.1, 1.0);
+        let left_offset = Vector3::new(-0.25, 0.15, 0.5);
+        let right_offset = Vector3::new(0.25, 0.15, 0.5);
 
         let left_light = Light::spot(
             Point3::new(0.0, 1.0, 0.0),
@@ -61,6 +65,8 @@ impl MovingObject {
             obj,
             spotlights: vec![left_light, right_light],
             spotlight_offsets: vec![left_offset, right_offset],
+            light_aim_yaw: 0.0,
+            light_aim_pitch: 0.0,
             orbit_angle: 0.0,
             orbit_radius,
             rotation_speed: 1.5,
@@ -79,10 +85,25 @@ impl MovingObject {
         self.obj.transform.position = Vector3::new(x, self.obj.transform.position.y, z);
 
         // Update spotlight world positions & directions
-        // The +Z face direction after Y-rotation by orbit_angle
-        let yaw = self.orbit_angle;
+        // Use the cube's visual rotation (not orbit_angle) so lights match the cube's face
+        let yaw = self.obj.transform.rotation.y;
         let forward = Vector3::new(yaw.sin(), 0.0, yaw.cos());
         let right_dir = Vector3::new(yaw.cos(), 0.0, -yaw.sin());
+
+        // Compute aimed direction in local space then transform to world
+        // local_aim: start with (0, -0.3, 1) = forward+slightly down,
+        //            then rotate by aim offsets
+        let aim_yaw = self.light_aim_yaw;
+        let aim_pitch = self.light_aim_pitch;
+        let local_aim = Vector3::new(
+            aim_yaw.sin(),
+            -0.3 + aim_pitch,
+            aim_yaw.cos(),
+        );
+        // Transform local aim to world using cube's heading
+        let world_aim = right_dir * local_aim.x
+            + Vector3::new(0.0, local_aim.y, 0.0)
+            + forward * local_aim.z;
 
         for (i, light) in self.spotlights.iter_mut().enumerate() {
             let offset = &self.spotlight_offsets[i];
@@ -91,10 +112,10 @@ impl MovingObject {
                 + forward * offset.z;
             light.position = Point3::new(
                 self.obj.transform.position.x + world_offset.x,
-                self.obj.transform.position.y + 0.8 + world_offset.y,
+                self.obj.transform.position.y + world_offset.y,
                 self.obj.transform.position.z + world_offset.z,
             );
-            light.direction = forward + Vector3::new(0.0, -0.3, 0.0);
+            light.direction = world_aim;
         }
     }
 
@@ -123,6 +144,18 @@ impl MovingObject {
         let fwd = dir;
         let right_dir = Vector3::new(heading.cos(), 0.0, -heading.sin());
 
+        // Compute aimed direction in local space then transform to world
+        let aim_yaw = self.light_aim_yaw;
+        let aim_pitch = self.light_aim_pitch;
+        let local_aim = Vector3::new(
+            aim_yaw.sin(),
+            -0.3 + aim_pitch,
+            aim_yaw.cos(),
+        );
+        let world_aim = right_dir * local_aim.x
+            + Vector3::new(0.0, local_aim.y, 0.0)
+            + fwd * local_aim.z;
+
         for (i, light) in self.spotlights.iter_mut().enumerate() {
             let offset = &self.spotlight_offsets[i];
             let world_offset = right_dir * offset.x
@@ -130,10 +163,10 @@ impl MovingObject {
                 + fwd * offset.z;
             light.position = Point3::new(
                 self.obj.transform.position.x + world_offset.x,
-                self.obj.transform.position.y + 0.8 + world_offset.y,
+                self.obj.transform.position.y + world_offset.y,
                 self.obj.transform.position.z + world_offset.z,
             );
-            light.direction = fwd + Vector3::new(0.0, -0.3, 0.0);
+            light.direction = world_aim;
         }
     }
 

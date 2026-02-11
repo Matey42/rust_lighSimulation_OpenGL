@@ -137,8 +137,12 @@ impl FppCamera {
     }
 
     pub fn update(&mut self, obj_pos: Point3<f32>, obj_yaw: f32) {
-        self.eye = obj_pos + self.eye_offset;
         let forward = Vector3::new(obj_yaw.sin(), 0.0, obj_yaw.cos());
+        let right = Vector3::new(obj_yaw.cos(), 0.0, -obj_yaw.sin());
+        let local_offset = right * self.eye_offset.x
+            + Vector3::new(0.0, self.eye_offset.y, 0.0)
+            + forward * self.eye_offset.z;
+        self.eye = obj_pos + local_offset;
         self.target = self.eye + forward * 10.0;
     }
 }

@@ -231,3 +231,65 @@ pub fn generate_plane(half_size: f32, subdivisions: u32) -> (Vec<Vertex>, Vec<u3
 
     (vertices, indices)
 }
+
+/// Generate a cone pointing along -Z (tip at origin, base at z = -length).
+/// This orientation makes it easy to align with a direction vector.
+pub fn generate_cone(radius: f32, length: f32, segments: u32) -> (Vec<Vertex>, Vec<u32>) {
+    let mut vertices = Vec::new();
+    let mut indices = Vec::new();
+
+    // Tip vertex at origin
+    vertices.push(Vertex {
+        position: [0.0, 0.0, 0.0],
+        normal: [0.0, 0.0, 1.0],
+        tex_coords: [0.5, 0.0],
+        tangent: [1.0, 0.0, 0.0],
+        bitangent: [0.0, 1.0, 0.0],
+    });
+
+    // Base ring vertices
+    let slope_len = (radius * radius + length * length).sqrt();
+    let nz = radius / slope_len;
+    let nr = length / slope_len;
+
+    for i in 0..=segments {
+        let angle = 2.0 * PI * i as f32 / segments as f32;
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+
+        vertices.push(Vertex {
+            position: [radius * cos_a, radius * sin_a, -length],
+            normal: [nr * cos_a, nr * sin_a, nz],
+            tex_coords: [i as f32 / segments as f32, 1.0],
+            tangent: [-sin_a, cos_a, 0.0],
+            bitangent: [0.0, 0.0, -1.0],
+        });
+    }
+
+    // Side triangles (tip to base ring)
+    for i in 0..segments {
+        indices.push(0); // tip
+        indices.push(1 + i);
+        indices.push(2 + i);
+    }
+
+    // Base cap center
+    let base_center_idx = vertices.len() as u32;
+    vertices.push(Vertex {
+        position: [0.0, 0.0, -length],
+        normal: [0.0, 0.0, -1.0],
+        tex_coords: [0.5, 1.0],
+        tangent: [1.0, 0.0, 0.0],
+        bitangent: [0.0, 1.0, 0.0],
+    });
+
+    // Base cap triangles
+    let base_ring_start = 1;
+    for i in 0..segments {
+        indices.push(base_center_idx);
+        indices.push(base_ring_start + i + 1);
+        indices.push(base_ring_start + i);
+    }
+
+    (vertices, indices)
+}

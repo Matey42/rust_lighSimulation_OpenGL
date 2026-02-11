@@ -48,6 +48,10 @@ pub struct UiState {
     pub key_d: bool,
     pub key_q: bool,
     pub key_e: bool,
+    pub key_arrow_left: bool,
+    pub key_arrow_right: bool,
+    pub key_arrow_up: bool,
+    pub key_arrow_down: bool,
     /// Whether the right mouse button is held (enables free-cam look)
     pub mouse_look: bool,
 
@@ -88,6 +92,10 @@ impl Default for UiState {
             key_d: false,
             key_q: false,
             key_e: false,
+            key_arrow_left: false,
+            key_arrow_right: false,
+            key_arrow_up: false,
+            key_arrow_down: false,
             mouse_look: false,
             show_panel: true,
             fps: 0.0,

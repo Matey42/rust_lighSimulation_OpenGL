@@ -60,7 +60,7 @@ fn main() {
     );
     let mut tracking_cam = TrackingCamera::new(Point3::new(0.0, 12.0, -14.0));
     let mut tpp_cam = TppCamera::new(Vector3::new(0.0, 2.0, 5.0), 3.0);
-    let mut fpp_cam = FppCamera::new(Vector3::new(0.0, 1.2, 0.0));
+    let mut fpp_cam = FppCamera::new(Vector3::new(0.0, 0.2, 0.55));
     let mut free_cam = FreeCamera::new(Point3::new(12.0, 10.0, 12.0));
 
     let mut last_frame = Instant::now();
@@ -123,6 +123,15 @@ fn main() {
                                     }
                                     _ => {}
                                 }
+                            }
+
+                            // Track arrow keys for free-cam look
+                            match &logical_key {
+                                Key::Named(NamedKey::ArrowLeft) => state.key_arrow_left = pressed,
+                                Key::Named(NamedKey::ArrowRight) => state.key_arrow_right = pressed,
+                                Key::Named(NamedKey::ArrowUp) => state.key_arrow_up = pressed,
+                                Key::Named(NamedKey::ArrowDown) => state.key_arrow_down = pressed,
+                                _ => {}
                             }
 
                             // Only handle scene keys on press when egui doesn't want input
@@ -192,15 +201,27 @@ fn main() {
                                 let up = if state.key_e { 1.0 } else { 0.0 }
                                     - if state.key_q { 1.0 } else { 0.0 };
                                 free_cam.process_keyboard(fwd, right, up, dt);
+
+                                // Arrow keys rotate the camera view
+                                let arrow_yaw = if state.key_arrow_right { 1.0 } else { 0.0 }
+                                    - if state.key_arrow_left { 1.0 } else { 0.0 };
+                                let arrow_pitch = if state.key_arrow_up { 1.0 } else { 0.0 }
+                                    - if state.key_arrow_down { 1.0 } else { 0.0 };
+                                if arrow_yaw != 0.0 || arrow_pitch != 0.0 {
+                                    // Scale to feel similar to mouse look
+                                    let look_speed = 220.0; // degrees-per-second feel
+                                    free_cam.process_mouse(
+                                        arrow_yaw * look_speed * dt,
+                                        -arrow_pitch * look_speed * dt,
+                                    );
+                                }
                             }
 
-                            // Apply manual spotlight offset
-                            for light in &mut scene.moving_object.spotlights {
-                                light.direction.x +=
-                                    state.spotlight_yaw_offset * 0.5;
-                                light.direction.y +=
-                                    state.spotlight_pitch_offset * 0.5;
-                            }
+                            // Apply spotlight aim (in local cube space, like real headlights)
+                            scene.moving_object.light_aim_yaw =
+                                state.spotlight_yaw_offset * 0.5;
+                            scene.moving_object.light_aim_pitch =
+                                state.spotlight_pitch_offset * 0.5;
 
                             // Update cameras
                             let mover_pos = scene.moving_object.world_position();
@@ -446,20 +467,28 @@ fn handle_key(key: &Key, state: &mut UiState) {
             );
         }
         Key::Named(NamedKey::ArrowLeft) => {
-            state.spotlight_yaw_offset -= 0.05;
-            println!("[Spotlight yaw] {:.2}", state.spotlight_yaw_offset);
+            if state.active_camera != 4 {
+                state.spotlight_yaw_offset += 0.05;
+                println!("[Spotlight yaw] {:.2}", state.spotlight_yaw_offset);
+            }
         }
         Key::Named(NamedKey::ArrowRight) => {
-            state.spotlight_yaw_offset += 0.05;
-            println!("[Spotlight yaw] {:.2}", state.spotlight_yaw_offset);
+            if state.active_camera != 4 {
+                state.spotlight_yaw_offset -= 0.05;
+                println!("[Spotlight yaw] {:.2}", state.spotlight_yaw_offset);
+            }
         }
         Key::Named(NamedKey::ArrowUp) => {
-            state.spotlight_pitch_offset += 0.05;
-            println!("[Spotlight pitch] {:.2}", state.spotlight_pitch_offset);
+            if state.active_camera != 4 {
+                state.spotlight_pitch_offset += 0.05;
+                println!("[Spotlight pitch] {:.2}", state.spotlight_pitch_offset);
+            }
         }
         Key::Named(NamedKey::ArrowDown) => {
-            state.spotlight_pitch_offset -= 0.05;
-            println!("[Spotlight pitch] {:.2}", state.spotlight_pitch_offset);
+            if state.active_camera != 4 {
+                state.spotlight_pitch_offset -= 0.05;
+                println!("[Spotlight pitch] {:.2}", state.spotlight_pitch_offset);
+            }
         }
         _ => {}
     }

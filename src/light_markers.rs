@@ -1,4 +1,4 @@
-use cgmath::{Matrix4, Vector3};
+use cgmath::{InnerSpace, Matrix4, Vector3};
 use glium::uniforms::{UniformValue, Uniforms};
 use glium::{DrawParameters, Surface};
 
@@ -8,11 +8,13 @@ use crate::types::mat4_to_array;
 use crate::vertex::Vertex;
 
 /// Renders small glowing spheres at each light source position
-/// so the user can see where lights are.
+/// and direction cones for spot lights.
 pub struct LightMarkers {
     program: glium::Program,
     sphere_vb: glium::VertexBuffer<Vertex>,
     sphere_ib: glium::IndexBuffer<u32>,
+    cone_vb: glium::VertexBuffer<Vertex>,
+    cone_ib: glium::IndexBuffer<u32>,
 }
 
 impl LightMarkers {
@@ -33,15 +35,27 @@ impl LightMarkers {
         )
         .unwrap();
 
+        // Cone mesh for direction indicators (tip at origin, base at -Z * length)
+        let (cone_v, cone_i) = primitives::generate_cone(0.08, 0.4, 16);
+        let cone_vb = glium::VertexBuffer::new(display, &cone_v).unwrap();
+        let cone_ib = glium::IndexBuffer::new(
+            display,
+            glium::index::PrimitiveType::TrianglesList,
+            &cone_i,
+        )
+        .unwrap();
+
         Self {
             program,
             sphere_vb,
             sphere_ib,
+            cone_vb,
+            cone_ib,
         }
     }
 
     /// Draw a marker for each non-directional light.
-    /// Directional lights have no position, so they are skipped.
+    /// Spotlights additionally get a direction cone.
     pub fn draw(
         &self,
         target: &mut glium::Frame,
@@ -72,6 +86,7 @@ impl LightMarkers {
             let model = Matrix4::from_translation(Vector3::new(pos.x, pos.y, pos.z));
             let model_arr = mat4_to_array(&model);
 
+            // Draw sphere marker
             let uniforms = MarkerUniforms {
                 model: model_arr,
                 view: view_arr,
@@ -88,8 +103,70 @@ impl LightMarkers {
                     &params,
                 )
                 .expect("Light marker draw failed");
+
+            // Draw direction cone for spot lights
+            if light.kind == LightKind::Spot {
+                let dir = light.direction.normalize();
+
+                // Build a rotation matrix that aligns -Z with `dir`
+                let cone_model = Matrix4::from_translation(Vector3::new(pos.x, pos.y, pos.z))
+                    * look_rotation(dir);
+
+                let cone_model_arr = mat4_to_array(&cone_model);
+
+                // Cone is delicate / translucent, softly tinted with light color
+                let cone_color = [
+                    light.diffuse[0] * 0.3,
+                    light.diffuse[1] * 0.3,
+                    light.diffuse[2] * 0.3,
+];
+
+                let cone_uniforms = MarkerUniforms {
+                    model: cone_model_arr,
+                    view: view_arr,
+                    projection: proj_arr,
+                    light_color: cone_color,
+                };
+
+                target
+                    .draw(
+                        &self.cone_vb,
+                        &self.cone_ib,
+                        &self.program,
+                        &cone_uniforms,
+                        &params,
+                    )
+                    .expect("Light cone draw failed");
+            }
         }
     }
+}
+
+/// Build a rotation matrix that aligns the -Z axis with the given direction.
+fn look_rotation(dir: Vector3<f32>) -> Matrix4<f32> {
+    // We want -Z to become `dir`, so the "forward" for the matrix is `dir`
+    let forward = dir.normalize();
+
+    // Choose an up vector that isn't parallel to forward
+    let world_up = if forward.y.abs() > 0.99 {
+        Vector3::new(0.0, 0.0, 1.0)
+    } else {
+        Vector3::new(0.0, 1.0, 0.0)
+    };
+
+    let right = forward.cross(world_up).normalize();
+    let up = right.cross(forward).normalize();
+
+    // Columns: right, up, -forward (because our cone points -Z)
+    // We want -Z -> forward, so Z column = -forward
+    #[rustfmt::skip]
+    let m = Matrix4::new(
+        right.x,    right.y,    right.z,    0.0,
+        up.x,       up.y,       up.z,       0.0,
+        -forward.x, -forward.y, -forward.z, 0.0,
+        0.0,        0.0,        0.0,        1.0,
+    );
+    m
 }
 
 struct MarkerUniforms {
