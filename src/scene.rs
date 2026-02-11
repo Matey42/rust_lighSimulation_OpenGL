@@ -79,9 +79,10 @@ impl MovingObject {
         self.obj.transform.position = Vector3::new(x, self.obj.transform.position.y, z);
 
         // Update spotlight world positions & directions
-        let yaw = self.orbit_angle; // Use orbit angle as the "heading"
-        let forward = Vector3::new(-yaw.sin(), 0.0, -yaw.cos());
-        let right_dir = Vector3::new(-yaw.cos(), 0.0, yaw.sin());
+        // The +Z face direction after Y-rotation by orbit_angle
+        let yaw = self.orbit_angle;
+        let forward = Vector3::new(yaw.sin(), 0.0, yaw.cos());
+        let right_dir = Vector3::new(yaw.cos(), 0.0, -yaw.sin());
 
         for (i, light) in self.spotlights.iter_mut().enumerate() {
             let offset = &self.spotlight_offsets[i];
@@ -107,18 +108,20 @@ impl MovingObject {
         turn_speed: f32,
         dt: f32,
     ) {
-        // Turn: positive turn = clockwise (right), negative = left
+        // Turn: positive turn = clockwise from above (right), negative = left
         self.orbit_angle += turn * turn_speed * dt;
-        self.obj.transform.rotation.y = -self.orbit_angle;
+        // The visual rotation of the cube: from_angle_y(Rad(rotation.y))
+        // rotates the +Z face of the cube. We want +Z face = front.
+        self.obj.transform.rotation.y = self.orbit_angle;
 
-        // Move along current heading (front faces -Z at angle 0)
+        // The +Z face after Y-rotation points in direction (sin(angle), 0, cos(angle))
         let heading = self.orbit_angle;
-        let dir = Vector3::new(-heading.sin(), 0.0, -heading.cos());
+        let dir = Vector3::new(heading.sin(), 0.0, heading.cos());
         self.obj.transform.position += dir * forward * speed * dt;
 
         // Update spotlights to follow the new position/heading
         let fwd = dir;
-        let right_dir = Vector3::new(-heading.cos(), 0.0, heading.sin());
+        let right_dir = Vector3::new(heading.cos(), 0.0, -heading.sin());
 
         for (i, light) in self.spotlights.iter_mut().enumerate() {
             let offset = &self.spotlight_offsets[i];
