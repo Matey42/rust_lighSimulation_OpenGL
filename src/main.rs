@@ -6,11 +6,13 @@ mod primitives;
 mod renderer;
 mod scene;
 mod types;
+mod ui;
 mod vertex;
 
 use std::time::Instant;
 
 use cgmath::{Deg, Matrix4, Point3, Vector3};
+use egui::ViewportId;
 use glium::Surface;
 use glium::winit;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
@@ -20,39 +22,7 @@ use camera::{Camera, FppCamera, StaticCamera, TppCamera, TrackingCamera};
 use grid::Grid;
 use renderer::Renderer;
 use scene::Scene;
-
-// ─────────────────── Application State ───────────────────
-
-struct AppState {
-    /// 0 = Static, 1 = Tracking, 2 = TPP, 3 = FPP
-    active_camera: usize,
-    use_phong: bool,
-    fog_enabled: bool,
-    fog_density: f32,
-    /// 0.0 = night, 1.0 = full day
-    day_factor: f32,
-    day_night_speed: f32,
-    day_night_auto: bool,
-    /// Spotlight direction offset adjustment (for manual control)
-    spotlight_yaw_offset: f32,
-    spotlight_pitch_offset: f32,
-}
-
-impl Default for AppState {
-    fn default() -> Self {
-        Self {
-            active_camera: 0,
-            use_phong: true,
-            fog_enabled: true,
-            fog_density: 0.02,
-            day_factor: 0.8,
-            day_night_speed: 0.15,
-            day_night_auto: true,
-            spotlight_yaw_offset: 0.0,
-            spotlight_pitch_offset: 0.0,
-        }
-    }
-}
+use ui::UiState;
 
 // ─────────────────────── Entry ───────────────────────────
 
@@ -70,8 +40,15 @@ fn main() {
     // ── Scene & renderer ──
     let mut scene = Scene::build_default(&display);
     let mut renderer = Renderer::new(&display);
-    let grid = Grid::new(&display);
-    let mut state = AppState::default();
+    let mut grid = Grid::new(&display);
+    let mut state = UiState::default();
+
+    // ── egui ──
+    let mut egui_glium =
+        egui_glium::EguiGlium::new(ViewportId::ROOT, &display, &window, &event_loop);
+
+    // Dark theme for game-engine look
+    egui_glium.egui_ctx().set_visuals(egui::Visuals::dark());
 
     // ── Cameras ──
     let static_cam = StaticCamera::new(
@@ -103,125 +80,185 @@ fn main() {
     let _ = event_loop
         .run(move |event, elwt| {
             match event {
-                Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::CloseRequested => {
-                        elwt.exit();
-                    }
-                    WindowEvent::KeyboardInput {
-                        event:
-                            KeyEvent {
-                                state: ElementState::Pressed,
-                                logical_key,
-                                ..
-                            },
-                        ..
-                    } => {
-                        handle_key(&logical_key, &mut state);
-                    }
-                    WindowEvent::RedrawRequested => {
-                        let now = Instant::now();
-                        let dt = (now - last_frame).as_secs_f32();
-                        last_frame = now;
+                Event::WindowEvent { event, .. } => {
+                    // Forward events to egui first
+                    let response = egui_glium.on_event(&window, &event);
 
-                        // ── Update ──
-                        scene.moving_object.update(dt);
-
-                        // Apply manual spotlight offset
-                        for light in &mut scene.moving_object.spotlights {
-                            light.direction.x += state.spotlight_yaw_offset * 0.1;
-                            light.direction.y += state.spotlight_pitch_offset * 0.1;
+                    match event {
+                        WindowEvent::CloseRequested => {
+                            elwt.exit();
                         }
-
-                        // Update cameras
-                        let mover_pos = scene.moving_object.world_position();
-                        let mover_yaw = scene.moving_object.yaw();
-                        tracking_cam.update_target(mover_pos);
-                        tpp_cam.update(mover_pos, mover_yaw);
-                        fpp_cam.update(mover_pos, mover_yaw);
-
-                        // Day/night
-                        if state.day_night_auto {
-                            state.day_factor +=
-                                state.day_night_speed * dt * 0.5;
-                            if state.day_factor > 1.0 || state.day_factor < 0.0 {
-                                state.day_night_speed = -state.day_night_speed;
-                                state.day_factor = state.day_factor.clamp(0.0, 1.0);
+                        WindowEvent::KeyboardInput {
+                            event:
+                                KeyEvent {
+                                    state: ElementState::Pressed,
+                                    logical_key,
+                                    ..
+                                },
+                            ..
+                        } => {
+                            // Tab toggles panel visibility (always handled)
+                            if logical_key == Key::Named(NamedKey::Tab) {
+                                state.show_panel = !state.show_panel;
+                            }
+                            // Only handle scene keys when egui doesn't want input
+                            if !response.consumed {
+                                handle_key(&logical_key, &mut state);
                             }
                         }
+                        WindowEvent::RedrawRequested => {
+                            let now = Instant::now();
+                            let dt = (now - last_frame).as_secs_f32();
+                            last_frame = now;
 
-                        // Modulate the sun (directional light) by day factor
-                        if let Some(sun) = scene.lights.iter_mut().find(|l| {
-                            l.kind == crate::light::LightKind::Directional
-                        }) {
-                            let f = state.day_factor;
-                            sun.diffuse = [f * 1.0, f * 0.95, f * 0.85];
-                            sun.ambient = [f * 0.15, f * 0.15, f * 0.15];
-                        }
+                            // Performance stats
+                            if dt > 0.0 {
+                                state.fps = 1.0 / dt;
+                                state.frame_time_ms = dt * 1000.0;
+                            }
 
-                        // ── Render ──
-                        renderer.use_phong = state.use_phong;
+                            // ── Update ──
+                            scene.moving_object.update(dt);
 
-                        let view: Matrix4<f32> = match state.active_camera {
-                            0 => static_cam.view_matrix(),
-                            1 => tracking_cam.view_matrix(),
-                            2 => tpp_cam.view_matrix(),
-                            3 => fpp_cam.view_matrix(),
-                            _ => static_cam.view_matrix(),
-                        };
+                            // Apply manual spotlight offset
+                            for light in &mut scene.moving_object.spotlights {
+                                light.direction.x +=
+                                    state.spotlight_yaw_offset * 0.1;
+                                light.direction.y +=
+                                    state.spotlight_pitch_offset * 0.1;
+                            }
 
-                        let (width, height) = {
-                            let size = window.inner_size();
-                            (size.width as f32, size.height as f32)
-                        };
-                        let aspect = width / height;
-                        let projection: Matrix4<f32> =
-                            cgmath::perspective(Deg(55.0), aspect, 0.1, 200.0);
+                            // Update cameras
+                            let mover_pos = scene.moving_object.world_position();
+                            let mover_yaw = scene.moving_object.yaw();
+                            tracking_cam.update_target(mover_pos);
+                            tpp_cam.update(mover_pos, mover_yaw);
+                            fpp_cam.update(mover_pos, mover_yaw);
 
-                        // Fog color adjusts with day/night
-                        let fog_base = 0.55 * state.day_factor + 0.05;
-                        let fog_color = [fog_base, fog_base, fog_base + 0.05];
+                            // Day/night
+                            if state.day_night_auto {
+                                state.day_factor +=
+                                    state.day_night_speed * dt * 0.5;
+                                if state.day_factor > 1.0 || state.day_factor < 0.0
+                                {
+                                    state.day_night_speed =
+                                        -state.day_night_speed;
+                                    state.day_factor =
+                                        state.day_factor.clamp(0.0, 1.0);
+                                }
+                            }
 
-                        // Collect all lights (scene + moving object headlights)
-                        let mut all_lights: Vec<_> = scene.lights.clone();
-                        all_lights.extend(scene.moving_object.spotlights.iter().cloned());
+                            // Modulate the sun (directional light) by day factor
+                            if let Some(sun) =
+                                scene.lights.iter_mut().find(|l| {
+                                    l.kind == crate::light::LightKind::Directional
+                                })
+                            {
+                                let f = state.day_factor;
+                                sun.diffuse = [f * 1.0, f * 0.95, f * 0.85];
+                                sun.ambient = [f * 0.15, f * 0.15, f * 0.15];
+                            }
 
-                        let ambient_strength = 0.15 + 0.85 * state.day_factor;
+                            // Sync grid config from UI state
+                            grid.config.grid_size = state.grid_size;
+                            grid.config.sub_grid_size = state.grid_sub_size;
+                            grid.config.fade_radius = state.grid_fade_radius;
+                            grid.config.line_width = state.grid_line_width;
 
-                        let params = glium::DrawParameters {
-                            depth: glium::Depth {
-                                test: glium::draw_parameters::DepthTest::IfLess,
-                                write: true,
+                            // ── Build egui UI ──
+                            egui_glium.run(&window, |ctx| {
+                                ui::draw_ui(ctx, &mut state);
+                            });
+
+                            // ── Render ──
+                            renderer.use_phong = state.use_phong;
+
+                            let view: Matrix4<f32> = match state.active_camera {
+                                0 => static_cam.view_matrix(),
+                                1 => tracking_cam.view_matrix(),
+                                2 => tpp_cam.view_matrix(),
+                                3 => fpp_cam.view_matrix(),
+                                _ => static_cam.view_matrix(),
+                            };
+
+                            let (width, height) = {
+                                let size = window.inner_size();
+                                (size.width as f32, size.height as f32)
+                            };
+                            let aspect = width / height;
+                            let projection: Matrix4<f32> =
+                                cgmath::perspective(Deg(55.0), aspect, 0.1, 200.0);
+
+                            // Fog color adjusts with day/night
+                            let fog_base =
+                                0.55 * state.day_factor + 0.05;
+                            let fog_color =
+                                [fog_base, fog_base, fog_base + 0.05];
+
+                            // Collect all lights (scene + moving object headlights)
+                            let mut all_lights: Vec<_> = scene.lights.clone();
+                            all_lights.extend(
+                                scene.moving_object.spotlights.iter().cloned(),
+                            );
+
+                            let ambient_strength =
+                                0.15 + 0.85 * state.day_factor;
+
+                            let params = glium::DrawParameters {
+                                depth: glium::Depth {
+                                    test: glium::draw_parameters::DepthTest::IfLess,
+                                    write: true,
+                                    ..Default::default()
+                                },
+                                backface_culling:
+                                    glium::draw_parameters::BackfaceCullingMode::CullClockwise,
                                 ..Default::default()
-                            },
-                            backface_culling:
-                                glium::draw_parameters::BackfaceCullingMode::CullClockwise,
-                            ..Default::default()
-                        };
+                            };
 
-                        let mut target = display.draw();
+                            let mut target = display.draw();
 
-                        // Clear with sky colour based on day factor
-                        let sky_r = 0.05 + 0.45 * state.day_factor;
-                        let sky_g = 0.05 + 0.55 * state.day_factor;
-                        let sky_b = 0.1 + 0.6 * state.day_factor;
-                        target.clear_color_and_depth((sky_r, sky_g, sky_b, 1.0), 1.0);
+                            // Clear with sky colour based on day factor
+                            let sky_r = 0.05 + 0.45 * state.day_factor;
+                            let sky_g = 0.05 + 0.55 * state.day_factor;
+                            let sky_b = 0.1 + 0.6 * state.day_factor;
+                            target.clear_color_and_depth(
+                                (sky_r, sky_g, sky_b, 1.0),
+                                1.0,
+                            );
 
-                        // Draw grid floor
-                        grid.draw(
-                            &mut target,
-                            &view,
-                            &projection,
-                            state.fog_enabled,
-                            fog_color,
-                            state.fog_density,
-                            ambient_strength,
-                        );
+                            // Draw grid floor
+                            if state.grid_visible {
+                                grid.draw(
+                                    &mut target,
+                                    &view,
+                                    &projection,
+                                    state.fog_enabled,
+                                    fog_color,
+                                    state.fog_density,
+                                    ambient_strength,
+                                );
+                            }
 
-                        // Draw static objects
-                        for obj in &scene.static_objects {
+                            // Draw static objects
+                            for obj in &scene.static_objects {
+                                renderer.draw_object(
+                                    &mut target,
+                                    obj,
+                                    &view,
+                                    &projection,
+                                    &all_lights,
+                                    state.fog_enabled,
+                                    fog_color,
+                                    state.fog_density,
+                                    ambient_strength,
+                                    &params,
+                                );
+                            }
+
+                            // Draw the moving object
                             renderer.draw_object(
                                 &mut target,
-                                obj,
+                                &scene.moving_object.obj,
                                 &view,
                                 &projection,
                                 &all_lights,
@@ -231,26 +268,15 @@ fn main() {
                                 ambient_strength,
                                 &params,
                             );
+
+                            // Draw egui on top of everything
+                            egui_glium.paint(&display, &mut target);
+
+                            target.finish().expect("Failed to swap buffers");
                         }
-
-                        // Draw the moving object
-                        renderer.draw_object(
-                            &mut target,
-                            &scene.moving_object.obj,
-                            &view,
-                            &projection,
-                            &all_lights,
-                            state.fog_enabled,
-                            fog_color,
-                            state.fog_density,
-                            ambient_strength,
-                            &params,
-                        );
-
-                        target.finish().expect("Failed to swap buffers");
+                        _ => {}
                     }
-                    _ => {}
-                },
+                }
                 Event::AboutToWait => {
                     window.request_redraw();
                 }
@@ -260,7 +286,7 @@ fn main() {
         .expect("Event loop error");
 }
 
-fn handle_key(key: &Key, state: &mut AppState) {
+fn handle_key(key: &Key, state: &mut UiState) {
     match key {
         Key::Named(NamedKey::Escape) => std::process::exit(0),
         Key::Character(c) => match c.as_str() {

@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-glium = "0.35"
+glium = "0.36"
+egui_glium = "0.33"
+egui = "0.33"
 image = "0.25"
 cgmath = "0.18"
 tobj = "4.0"
