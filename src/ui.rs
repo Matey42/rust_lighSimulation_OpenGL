@@ -32,8 +32,10 @@ pub struct UiState {
     pub grid_fade_radius: f32,
     pub grid_line_width: f32,
 
-    // Animation
-    pub animation_paused: bool,
+    // Manual driving of the moving object
+    pub manual_drive: bool,
+    pub drive_speed: f32,
+    pub drive_turn_speed: f32,
 
     // Free camera
     pub free_cam_speed: f32,
@@ -75,7 +77,9 @@ impl Default for UiState {
             grid_sub_size: gc.sub_grid_size,
             grid_fade_radius: gc.fade_radius,
             grid_line_width: gc.line_width,
-            animation_paused: false,
+            manual_drive: false,
+            drive_speed: 5.0,
+            drive_turn_speed: 2.0,
             free_cam_speed: 8.0,
             free_cam_sensitivity: 0.3,
             key_w: false,
@@ -183,7 +187,30 @@ pub fn draw_ui(ctx: &egui::Context, state: &mut UiState) {
 
                 // ── Animation ──
                 ui.collapsing(RichText::new("▶  Animation").size(15.0), |ui| {
-                    ui.checkbox(&mut state.animation_paused, "Pause animation");
+                    ui.checkbox(&mut state.manual_drive, "Manual drive (steer object)");
+                    if state.manual_drive {
+                        ui.label(
+                            RichText::new("Auto-animation paused while driving")
+                                .color(Color32::from_rgb(220, 180, 100))
+                                .size(12.0),
+                        );
+                        ui.label(
+                            RichText::new("W/S = forward/back, A/D = turn")
+                                .italics()
+                                .color(Color32::from_white_alpha(140))
+                                .size(12.0),
+                        );
+                        ui.add(
+                            egui::Slider::new(&mut state.drive_speed, 1.0..=20.0)
+                                .text("Drive speed")
+                                .fixed_decimals(1),
+                        );
+                        ui.add(
+                            egui::Slider::new(&mut state.drive_turn_speed, 0.5..=5.0)
+                                .text("Turn speed")
+                                .fixed_decimals(1),
+                        );
+                    }
                 });
 
                 // ── Day / Night ──
@@ -259,10 +286,9 @@ pub fn draw_ui(ctx: &egui::Context, state: &mut UiState) {
                     let shortcuts = [
                         ("Tab", "Toggle this panel"),
                         ("1–5", "Switch camera"),
-                        ("WASD", "Move (Free cam)"),
+                        ("WASD", "Move / Drive"),
                         ("Q / E", "Down / Up (Free cam)"),
                         ("RMB", "Look around (Free cam)"),
-                        ("Space", "Pause animation"),
                         ("P", "Toggle shading"),
                         ("F", "Toggle fog"),
                         ("+/−", "Fog density"),

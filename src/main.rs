@@ -106,8 +106,8 @@ fn main() {
                                 state.show_panel = !state.show_panel;
                             }
 
-                            // Track WASD / QE for free camera (regardless of egui)
-                            if state.active_camera == 4 {
+                            // Track WASD / QE for free camera OR manual drive
+                            if state.active_camera == 4 || state.manual_drive {
                                 match &logical_key {
                                     Key::Character(c) => match c.as_str() {
                                         "w" | "W" => state.key_w = pressed,
@@ -151,8 +151,27 @@ fn main() {
                             }
 
                             // ── Update ──
-                            if !state.animation_paused {
+                            if !state.manual_drive {
                                 scene.moving_object.update(dt);
+                            }
+
+                            // Manual drive of the moving object
+                            if state.manual_drive {
+                                let fwd = if state.key_w { 1.0 } else { 0.0 }
+                                    - if state.key_s { 1.0 } else { 0.0 };
+                                let turn = if state.key_d { 1.0 } else { 0.0 }
+                                    - if state.key_a { 1.0 } else { 0.0 };
+                                // Only pass movement when NOT in free cam
+                                // (free cam uses WASD for itself)
+                                if state.active_camera != 4 {
+                                    scene.moving_object.manual_drive_update(
+                                        fwd,
+                                        turn,
+                                        state.drive_speed,
+                                        state.drive_turn_speed,
+                                        dt,
+                                    );
+                                }
                             }
 
                             // Free camera movement (WASD + QE)
@@ -171,9 +190,9 @@ fn main() {
                             // Apply manual spotlight offset
                             for light in &mut scene.moving_object.spotlights {
                                 light.direction.x +=
-                                    state.spotlight_yaw_offset * 0.1;
+                                    state.spotlight_yaw_offset * 0.5;
                                 light.direction.y +=
-                                    state.spotlight_pitch_offset * 0.1;
+                                    state.spotlight_pitch_offset * 0.5;
                             }
 
                             // Update cameras
@@ -366,13 +385,6 @@ fn handle_key(key: &Key, state: &mut UiState) {
             "5" => {
                 state.active_camera = 4;
                 println!("[Camera] Free (WASD)");
-            }
-            " " => {
-                state.animation_paused = !state.animation_paused;
-                println!(
-                    "[Animation] {}",
-                    if state.animation_paused { "PAUSED" } else { "PLAYING" }
-                );
             }
             "p" | "P" => {
                 state.use_phong = !state.use_phong;

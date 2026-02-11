@@ -80,8 +80,8 @@ impl MovingObject {
 
         // Update spotlight world positions & directions
         let yaw = self.orbit_angle; // Use orbit angle as the "heading"
-        let forward = Vector3::new(yaw.sin(), 0.0, yaw.cos());
-        let right_dir = Vector3::new(yaw.cos(), 0.0, -yaw.sin());
+        let forward = Vector3::new(-yaw.sin(), 0.0, -yaw.cos());
+        let right_dir = Vector3::new(-yaw.cos(), 0.0, yaw.sin());
 
         for (i, light) in self.spotlights.iter_mut().enumerate() {
             let offset = &self.spotlight_offsets[i];
@@ -94,6 +94,43 @@ impl MovingObject {
                 self.obj.transform.position.z + world_offset.z,
             );
             light.direction = forward + Vector3::new(0.0, -0.3, 0.0);
+        }
+    }
+
+    /// Advance the object under manual control.
+    /// `forward` = +1 (W) / −1 (S), `turn` = +1 (D=right) / −1 (A=left).
+    pub fn manual_drive_update(
+        &mut self,
+        forward: f32,
+        turn: f32,
+        speed: f32,
+        turn_speed: f32,
+        dt: f32,
+    ) {
+        // Turn: positive turn = clockwise (right), negative = left
+        self.orbit_angle += turn * turn_speed * dt;
+        self.obj.transform.rotation.y = -self.orbit_angle;
+
+        // Move along current heading (front faces -Z at angle 0)
+        let heading = self.orbit_angle;
+        let dir = Vector3::new(-heading.sin(), 0.0, -heading.cos());
+        self.obj.transform.position += dir * forward * speed * dt;
+
+        // Update spotlights to follow the new position/heading
+        let fwd = dir;
+        let right_dir = Vector3::new(-heading.cos(), 0.0, heading.sin());
+
+        for (i, light) in self.spotlights.iter_mut().enumerate() {
+            let offset = &self.spotlight_offsets[i];
+            let world_offset = right_dir * offset.x
+                + Vector3::new(0.0, offset.y, 0.0)
+                + fwd * offset.z;
+            light.position = Point3::new(
+                self.obj.transform.position.x + world_offset.x,
+                self.obj.transform.position.y + 0.8 + world_offset.y,
+                self.obj.transform.position.z + world_offset.z,
+            );
+            light.direction = fwd + Vector3::new(0.0, -0.3, 0.0);
         }
     }
 
