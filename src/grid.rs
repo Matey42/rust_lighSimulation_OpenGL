@@ -2,6 +2,7 @@ use cgmath::Matrix4;
 use glium::uniforms::{UniformValue, Uniforms};
 use glium::{DrawParameters, Surface};
 
+use crate::light::{Light, LightKind};
 use crate::types::mat4_to_array;
 use crate::vertex::Vertex;
 
@@ -90,9 +91,35 @@ impl Grid {
         fog_color: [f32; 3],
         fog_density: f32,
         ambient_strength: f32,
+        spotlights: &[Light],
     ) {
         let view_arr = mat4_to_array(view);
         let proj_arr = mat4_to_array(projection);
+
+        // Collect spotlight data (up to 4)
+        const MAX_SPOTS: usize = 4;
+        let mut spot_positions = [[0.0_f32; 3]; MAX_SPOTS];
+        let mut spot_directions = [[0.0_f32; 3]; MAX_SPOTS];
+        let mut spot_colors = [[0.0_f32; 3]; MAX_SPOTS];
+        let mut spot_cutoffs = [0.0_f32; MAX_SPOTS];
+        let mut spot_outer_cutoffs = [0.0_f32; MAX_SPOTS];
+        let mut num_spots = 0_i32;
+
+        for light in spotlights {
+            if light.kind != LightKind::Spot {
+                continue;
+            }
+            if (num_spots as usize) >= MAX_SPOTS {
+                break;
+            }
+            let i = num_spots as usize;
+            spot_positions[i] = [light.position.x, light.position.y, light.position.z];
+            spot_directions[i] = [light.direction.x, light.direction.y, light.direction.z];
+            spot_colors[i] = light.diffuse;
+            spot_cutoffs[i] = light.cutoff;
+            spot_outer_cutoffs[i] = light.outer_cutoff;
+            num_spots += 1;
+        }
 
         let uniforms = GridUniforms {
             view: view_arr,
@@ -105,6 +132,12 @@ impl Grid {
             fog_color,
             fog_density,
             ambient_strength,
+            num_spots,
+            spot_positions,
+            spot_directions,
+            spot_colors,
+            spot_cutoffs,
+            spot_outer_cutoffs,
         };
 
         let params = DrawParameters {
@@ -154,6 +187,12 @@ struct GridUniforms {
     fog_color: [f32; 3],
     fog_density: f32,
     ambient_strength: f32,
+    num_spots: i32,
+    spot_positions: [[f32; 3]; 4],
+    spot_directions: [[f32; 3]; 4],
+    spot_colors: [[f32; 3]; 4],
+    spot_cutoffs: [f32; 4],
+    spot_outer_cutoffs: [f32; 4],
 }
 
 impl Uniforms for GridUniforms {
@@ -168,5 +207,30 @@ impl Uniforms for GridUniforms {
         f("u_fog_color", UniformValue::Vec3(self.fog_color));
         f("u_fog_density", UniformValue::Float(self.fog_density));
         f("u_ambient_strength", UniformValue::Float(self.ambient_strength));
+        f("u_num_spots", UniformValue::SignedInt(self.num_spots));
+
+        // Per-spotlight uniforms (indexed arrays)
+        for i in 0..4 {
+            f(
+                &format!("u_spot_position[{}]", i),
+                UniformValue::Vec3(self.spot_positions[i]),
+            );
+            f(
+                &format!("u_spot_direction[{}]", i),
+                UniformValue::Vec3(self.spot_directions[i]),
+            );
+            f(
+                &format!("u_spot_color[{}]", i),
+                UniformValue::Vec3(self.spot_colors[i]),
+            );
+            f(
+                &format!("u_spot_cutoff[{}]", i),
+                UniformValue::Float(self.spot_cutoffs[i]),
+            );
+            f(
+                &format!("u_spot_outer_cutoff[{}]", i),
+                UniformValue::Float(self.spot_outer_cutoffs[i]),
+            );
+        }
     }
 }

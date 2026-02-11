@@ -158,14 +158,28 @@ pub struct Scene {
 
 impl Scene {
     /// Build the default demonstration scene.
+    ///
+    /// Layout (top-down, +X = right, +Z = toward viewer):
+    ///
+    ///   Moving cube orbits at radius 4.0 around the origin.
+    ///   All static objects are placed well outside the orbit path (≥ 7 units)
+    ///   so the mover never clips through them.
+    ///
+    ///   Static objects are arranged in a rough pentagon around the scene:
+    ///     • Red Sphere    — front-right  ( 7, 1,  5)
+    ///     • Blue Torus    — front-left   (-7, 1.5, 5)
+    ///     • Green Cube    — back-left    (-8, 0.8, -4)
+    ///     • Yellow Cube   — back-right   ( 8, 0.8, -4)
+    ///     • Big Sphere    — far back     ( 0, 2,  -10)
+    ///
     pub fn build_default(display: &Display<glium::glutin::surface::WindowSurface>) -> Self {
-        // ── Sphere (smooth surface – required) ──
+        // ── Sphere (smooth surface) — front-right ──
         let (sphere_v, sphere_i) = primitives::generate_sphere(1.0, 40, 40);
         let sphere = SceneObject {
             name: "Sphere".into(),
             meshes: vec![mesh_from_data(display, &sphere_v, &sphere_i)],
             transform: Transform {
-                position: Vector3::new(4.0, 1.0, 3.0),
+                position: Vector3::new(7.0, 1.0, 5.0),
                 ..Default::default()
             },
             material: Material {
@@ -176,14 +190,14 @@ impl Scene {
             },
         };
 
-        // ── Torus (another smooth surface) ──
+        // ── Torus (another smooth surface) — front-left ──
         let (torus_v, torus_i) = primitives::generate_torus(1.5, 0.5, 48, 24);
         let torus = SceneObject {
             name: "Torus".into(),
             meshes: vec![mesh_from_data(display, &torus_v, &torus_i)],
             transform: Transform {
-                position: Vector3::new(-4.0, 1.5, 2.0),
-                rotation: Vector3::new(0.3, 0.0, 0.0),
+                position: Vector3::new(-7.0, 1.5, 5.0),
+                rotation: Vector3::new(0.3, 0.5, 0.0),
                 ..Default::default()
             },
             material: Material {
@@ -194,13 +208,13 @@ impl Scene {
             },
         };
 
-        // ── Static cubes ──
+        // ── Static cubes — back-left and back-right ──
         let (cube_v, cube_i) = primitives::generate_cube(0.8);
         let cube1 = SceneObject {
             name: "Cube1".into(),
             meshes: vec![mesh_from_data(display, &cube_v, &cube_i)],
             transform: Transform {
-                position: Vector3::new(-2.0, 0.3, -3.0),
+                position: Vector3::new(-8.0, 0.8, -4.0),
                 rotation: Vector3::new(0.0, 0.8, 0.0),
                 ..Default::default()
             },
@@ -215,7 +229,7 @@ impl Scene {
             name: "Cube2".into(),
             meshes: vec![mesh_from_data(display, &cube_v, &cube_i)],
             transform: Transform {
-                position: Vector3::new(3.0, 0.3, -4.0),
+                position: Vector3::new(8.0, 0.8, -4.0),
                 rotation: Vector3::new(0.0, -0.5, 0.0),
                 ..Default::default()
             },
@@ -227,13 +241,13 @@ impl Scene {
             },
         };
 
-        // ── Large sphere (pedestal) ──
+        // ── Large sphere — far back center ──
         let (big_sphere_v, big_sphere_i) = primitives::generate_sphere(2.0, 48, 48);
         let big_sphere = SceneObject {
             name: "BigSphere".into(),
             meshes: vec![mesh_from_data(display, &big_sphere_v, &big_sphere_i)],
             transform: Transform {
-                position: Vector3::new(0.0, 1.5, -7.0),
+                position: Vector3::new(0.0, 2.0, -10.0),
                 ..Default::default()
             },
             material: Material {
@@ -244,13 +258,13 @@ impl Scene {
             },
         };
 
-        // ── Moving object (a cube that orbits) ──
+        // ── Moving object (a cube that orbits at radius 4) ──
         let (mv_v, mv_i) = primitives::generate_cube(0.5);
         let moving_scene_obj = SceneObject {
             name: "Mover".into(),
             meshes: vec![mesh_from_data(display, &mv_v, &mv_i)],
             transform: Transform {
-                position: Vector3::new(5.0, 0.5, 0.0),
+                position: Vector3::new(4.0, 0.5, 0.0),
                 ..Default::default()
             },
             material: Material {
@@ -260,26 +274,31 @@ impl Scene {
                 shininess: 32.0,
             },
         };
-        let moving_object = MovingObject::new(moving_scene_obj, 6.0);
+        let moving_object = MovingObject::new(moving_scene_obj, 4.0);
 
         // ── Lights ──
+        // Total: 5 light sources
+        //   1. Point light  — warm, high above center        (0, 10, 0)
+        //   2. Spotlight     — cool blue, aimed at the torus  (-7, 7, 5)
+        //   3. Directional   — "sun", modulated by day/night  dir(-0.3, -1, -0.5)
+        //   + 2 spotlights attached to the moving cube (headlights)
 
-        // 1. Fixed point light (warm, above scene)
+        // 1. Fixed point light (warm, above scene center)
         let point_light = Light::point(
-            Point3::new(0.0, 8.0, 0.0),
+            Point3::new(0.0, 10.0, 0.0),
             [0.9, 0.85, 0.7],
         );
 
         // 2. Fixed spotlight (cool, illuminating the torus area)
         let fixed_spot = Light::spot(
-            Point3::new(-4.0, 6.0, 2.0),
+            Point3::new(-7.0, 7.0, 5.0),
             Vector3::new(0.0, -1.0, 0.0),
             [0.4, 0.4, 0.8],
             20.0,
             35.0,
         );
 
-        // 3. Directional "sun" – will be modulated by day/night cycle
+        // 3. Directional "sun" – modulated by day/night cycle
         let sun = Light::directional(
             Vector3::new(-0.3, -1.0, -0.5),
             [1.0, 0.95, 0.85],

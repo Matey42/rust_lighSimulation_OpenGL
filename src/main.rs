@@ -1,6 +1,7 @@
 mod camera;
 mod grid;
 mod light;
+mod light_markers;
 mod model;
 mod primitives;
 mod renderer;
@@ -20,6 +21,7 @@ use winit::keyboard::{Key, NamedKey};
 
 use camera::{Camera, FppCamera, FreeCamera, StaticCamera, TppCamera, TrackingCamera};
 use grid::Grid;
+use light_markers::LightMarkers;
 use renderer::Renderer;
 use scene::Scene;
 use ui::UiState;
@@ -41,6 +43,7 @@ fn main() {
     let mut scene = Scene::build_default(&display);
     let mut renderer = Renderer::new(&display);
     let mut grid = Grid::new(&display);
+    let light_markers = LightMarkers::new(&display);
     let mut state = UiState::default();
 
     // ── egui ──
@@ -308,8 +311,17 @@ fn main() {
                                     fog_color,
                                     state.fog_density,
                                     ambient_strength,
+                                    &all_lights,
                                 );
                             }
+
+                            // Draw light source markers
+                            light_markers.draw(
+                                &mut target,
+                                &all_lights,
+                                &view,
+                                &projection,
+                            );
 
                             // Draw static objects
                             for obj in &scene.static_objects {
