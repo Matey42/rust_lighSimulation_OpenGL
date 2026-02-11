@@ -81,10 +81,6 @@ void main() {
     vec2 world_xz = v_world_pos.xz;
     float dist_from_camera = length(v_view_pos);
 
-    // ── Fade with distance ──
-    float fade = 1.0 - smoothstep(u_fade_radius * 0.3, u_fade_radius, dist_from_camera);
-    if (fade <= 0.001) discard;
-
     // ── Base grid colours ──
     float brightness = mix(0.15, 1.0, u_ambient_strength);
 
@@ -122,9 +118,6 @@ void main() {
     vec3 spot_contrib = compute_spot_lighting(v_world_pos, v_world_normal);
     // Add spotlight as additive light on the grid — warm pool of light
     color += spot_contrib * 1.5;
-
-    // ── Distance fade ──
-    alpha *= fade;
 
     // ── Fog ──
     if (u_fog_enabled) {
