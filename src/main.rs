@@ -18,7 +18,7 @@ use glium::winit;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
 use winit::keyboard::{Key, NamedKey};
 
-use camera::{Camera, FppCamera, StaticCamera, TppCamera, TrackingCamera};
+use camera::{Camera, FppCamera, FreeCamera, StaticCamera, TppCamera, TrackingCamera};
 use grid::Grid;
 use renderer::Renderer;
 use scene::Scene;
@@ -58,6 +58,7 @@ fn main() {
     let mut tracking_cam = TrackingCamera::new(Point3::new(0.0, 12.0, -14.0));
     let mut tpp_cam = TppCamera::new(Vector3::new(0.0, 2.0, 5.0), 3.0);
     let mut fpp_cam = FppCamera::new(Vector3::new(0.0, 1.2, 0.0));
+    let mut free_cam = FreeCamera::new(Point3::new(12.0, 10.0, 12.0));
 
     let mut last_frame = Instant::now();
 
@@ -88,24 +89,56 @@ fn main() {
                         WindowEvent::CloseRequested => {
                             elwt.exit();
                         }
+                        // Track key presses AND releases for continuous WASD
                         WindowEvent::KeyboardInput {
                             event:
                                 KeyEvent {
-                                    state: ElementState::Pressed,
+                                    state: key_state,
                                     logical_key,
                                     ..
                                 },
                             ..
                         } => {
-                            // Tab toggles panel visibility (always handled)
-                            if logical_key == Key::Named(NamedKey::Tab) {
+                            let pressed = key_state == ElementState::Pressed;
+
+                            // Tab toggles panel visibility (always handled, press only)
+                            if pressed && logical_key == Key::Named(NamedKey::Tab) {
                                 state.show_panel = !state.show_panel;
                             }
-                            // Only handle scene keys when egui doesn't want input
-                            if !response.consumed {
+
+                            // Track WASD / QE for free camera (regardless of egui)
+                            if state.active_camera == 4 {
+                                match &logical_key {
+                                    Key::Character(c) => match c.as_str() {
+                                        "w" | "W" => state.key_w = pressed,
+                                        "a" | "A" => state.key_a = pressed,
+                                        "s" | "S" => state.key_s = pressed,
+                                        "d" | "D" => state.key_d = pressed,
+                                        "q" | "Q" => state.key_q = pressed,
+                                        "e" | "E" => state.key_e = pressed,
+                                        _ => {}
+                                    }
+                                    _ => {}
+                                }
+                            }
+
+                            // Only handle scene keys on press when egui doesn't want input
+                            if pressed && !response.consumed {
                                 handle_key(&logical_key, &mut state);
                             }
                         }
+                        // Track right mouse button for free-camera look
+                        WindowEvent::MouseInput {
+                            state: btn_state,
+                            button: winit::event::MouseButton::Right,
+                            ..
+                        } => {
+                            state.mouse_look =
+                                btn_state == ElementState::Pressed;
+                        }
+                        // Mouse motion for free-camera look
+                        WindowEvent::CursorMoved { .. } => {}
+                    
                         WindowEvent::RedrawRequested => {
                             let now = Instant::now();
                             let dt = (now - last_frame).as_secs_f32();
@@ -118,7 +151,22 @@ fn main() {
                             }
 
                             // ── Update ──
-                            scene.moving_object.update(dt);
+                            if !state.animation_paused {
+                                scene.moving_object.update(dt);
+                            }
+
+                            // Free camera movement (WASD + QE)
+                            if state.active_camera == 4 {
+                                free_cam.speed = state.free_cam_speed;
+                                free_cam.sensitivity = state.free_cam_sensitivity * 0.01;
+                                let fwd = if state.key_w { 1.0 } else { 0.0 }
+                                    - if state.key_s { 1.0 } else { 0.0 };
+                                let right = if state.key_d { 1.0 } else { 0.0 }
+                                    - if state.key_a { 1.0 } else { 0.0 };
+                                let up = if state.key_e { 1.0 } else { 0.0 }
+                                    - if state.key_q { 1.0 } else { 0.0 };
+                                free_cam.process_keyboard(fwd, right, up, dt);
+                            }
 
                             // Apply manual spotlight offset
                             for light in &mut scene.moving_object.spotlights {
@@ -178,6 +226,7 @@ fn main() {
                                 1 => tracking_cam.view_matrix(),
                                 2 => tpp_cam.view_matrix(),
                                 3 => fpp_cam.view_matrix(),
+                                4 => free_cam.view_matrix(),
                                 _ => static_cam.view_matrix(),
                             };
 
@@ -277,6 +326,14 @@ fn main() {
                         _ => {}
                     }
                 }
+                Event::DeviceEvent {
+                    event: winit::event::DeviceEvent::MouseMotion { delta },
+                    ..
+                } => {
+                    if state.active_camera == 4 && state.mouse_look {
+                        free_cam.process_mouse(delta.0 as f32, delta.1 as f32);
+                    }
+                }
                 Event::AboutToWait => {
                     window.request_redraw();
                 }
@@ -305,6 +362,17 @@ fn handle_key(key: &Key, state: &mut UiState) {
             "4" => {
                 state.active_camera = 3;
                 println!("[Camera] First-Person (FPP)");
+            }
+            "5" => {
+                state.active_camera = 4;
+                println!("[Camera] Free (WASD)");
+            }
+            " " => {
+                state.animation_paused = !state.animation_paused;
+                println!(
+                    "[Animation] {}",
+                    if state.animation_paused { "PAUSED" } else { "PLAYING" }
+                );
             }
             "p" | "P" => {
                 state.use_phong = !state.use_phong;

@@ -154,8 +154,7 @@ impl Camera for FppCamera {
 
 // ─────────────── Free Camera (bonus) ────────────────────────
 
-/// A free-look camera controlled with keyboard + mouse – useful for debugging.
-#[allow(dead_code)]
+/// A free-look camera controlled with keyboard + mouse.
 pub struct FreeCamera {
     pub eye: Point3<f32>,
     pub yaw: f32,
@@ -164,7 +163,6 @@ pub struct FreeCamera {
     pub sensitivity: f32,
 }
 
-#[allow(dead_code)]
 impl FreeCamera {
     pub fn new(eye: Point3<f32>) -> Self {
         Self {

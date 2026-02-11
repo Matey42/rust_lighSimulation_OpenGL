@@ -32,6 +32,23 @@ pub struct UiState {
     pub grid_fade_radius: f32,
     pub grid_line_width: f32,
 
+    // Animation
+    pub animation_paused: bool,
+
+    // Free camera
+    pub free_cam_speed: f32,
+    pub free_cam_sensitivity: f32,
+
+    // Continuous key state for free camera (WASD + QE)
+    pub key_w: bool,
+    pub key_a: bool,
+    pub key_s: bool,
+    pub key_d: bool,
+    pub key_q: bool,
+    pub key_e: bool,
+    /// Whether the right mouse button is held (enables free-cam look)
+    pub mouse_look: bool,
+
     // UI visibility
     pub show_panel: bool,
 
@@ -58,6 +75,16 @@ impl Default for UiState {
             grid_sub_size: gc.sub_grid_size,
             grid_fade_radius: gc.fade_radius,
             grid_line_width: gc.line_width,
+            animation_paused: false,
+            free_cam_speed: 8.0,
+            free_cam_sensitivity: 0.3,
+            key_w: false,
+            key_a: false,
+            key_s: false,
+            key_d: false,
+            key_q: false,
+            key_e: false,
+            mouse_look: false,
             show_panel: true,
             fps: 0.0,
             frame_time_ms: 0.0,
@@ -113,6 +140,26 @@ pub fn draw_ui(ctx: &egui::Context, state: &mut UiState) {
                     ui.radio_value(&mut state.active_camera, 1, "Tracking");
                     ui.radio_value(&mut state.active_camera, 2, "Third-Person (TPP)");
                     ui.radio_value(&mut state.active_camera, 3, "First-Person (FPP)");
+                    ui.radio_value(&mut state.active_camera, 4, "Free (WASD)");
+                    if state.active_camera == 4 {
+                        ui.separator();
+                        ui.label(
+                            RichText::new("Hold RMB to look around")
+                                .italics()
+                                .color(Color32::from_white_alpha(140))
+                                .size(12.0),
+                        );
+                        ui.add(
+                            egui::Slider::new(&mut state.free_cam_speed, 1.0..=30.0)
+                                .text("Speed")
+                                .fixed_decimals(1),
+                        );
+                        ui.add(
+                            egui::Slider::new(&mut state.free_cam_sensitivity, 0.05..=1.0)
+                                .text("Sensitivity")
+                                .fixed_decimals(2),
+                        );
+                    }
                 });
 
                 // ── Shading ──
@@ -132,6 +179,11 @@ pub fn draw_ui(ctx: &egui::Context, state: &mut UiState) {
                             .text("Density")
                             .fixed_decimals(3),
                     );
+                });
+
+                // ── Animation ──
+                ui.collapsing(RichText::new("▶  Animation").size(15.0), |ui| {
+                    ui.checkbox(&mut state.animation_paused, "Pause animation");
                 });
 
                 // ── Day / Night ──
@@ -206,7 +258,11 @@ pub fn draw_ui(ctx: &egui::Context, state: &mut UiState) {
                     ui.spacing_mut().item_spacing.y = 2.0;
                     let shortcuts = [
                         ("Tab", "Toggle this panel"),
-                        ("1–4", "Switch camera"),
+                        ("1–5", "Switch camera"),
+                        ("WASD", "Move (Free cam)"),
+                        ("Q / E", "Down / Up (Free cam)"),
+                        ("RMB", "Look around (Free cam)"),
+                        ("Space", "Pause animation"),
                         ("P", "Toggle shading"),
                         ("F", "Toggle fog"),
                         ("+/−", "Fog density"),
