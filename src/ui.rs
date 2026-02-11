@@ -285,6 +285,7 @@ pub fn draw_ui(ctx: &egui::Context, state: &mut UiState) {
                     ui.spacing_mut().item_spacing.y = 2.0;
                     let shortcuts = [
                         ("Tab", "Toggle this panel"),
+                        ("Space", "Toggle animation / manual"),
                         ("1–5", "Switch camera"),
                         ("WASD", "Move / Drive"),
                         ("Q / E", "Down / Up (Free cam)"),

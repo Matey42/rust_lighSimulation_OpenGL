@@ -159,8 +159,12 @@ fn main() {
                             if state.manual_drive {
                                 let fwd = if state.key_w { 1.0 } else { 0.0 }
                                     - if state.key_s { 1.0 } else { 0.0 };
-                                let turn = if state.key_d { 1.0 } else { 0.0 }
-                                    - if state.key_a { 1.0 } else { 0.0 };
+                                let mut turn = if state.key_a { 1.0 } else { 0.0 }
+                                    - if state.key_d { 1.0 } else { 0.0 };
+                                // Reverse turning when going backward (like a real vehicle)
+                                if fwd < 0.0 {
+                                    turn = -turn;
+                                }
                                 // Only pass movement when NOT in free cam
                                 // (free cam uses WASD for itself)
                                 if state.active_camera != 4 {
@@ -422,6 +426,13 @@ fn handle_key(key: &Key, state: &mut UiState) {
             }
             _ => {}
         },
+        Key::Named(NamedKey::Space) => {
+            state.manual_drive = !state.manual_drive;
+            println!(
+                "[Drive] {}",
+                if state.manual_drive { "Manual" } else { "Animation" }
+            );
+        }
         Key::Named(NamedKey::ArrowLeft) => {
             state.spotlight_yaw_offset -= 0.05;
             println!("[Spotlight yaw] {:.2}", state.spotlight_yaw_offset);
