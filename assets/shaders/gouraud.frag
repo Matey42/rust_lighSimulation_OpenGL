@@ -18,9 +18,11 @@ void main() {
         color *= texture(u_diffuse_tex, v_tex_coords_out).rgb;
     }
 
+    float alpha = 1.0;
     if (u_fog_enabled) {
         color = mix(u_fog_color, color, v_fog_factor);
+        alpha = v_fog_factor;
     }
 
-    frag_color = vec4(color, 1.0);
+    frag_color = vec4(color, alpha);
 }

@@ -36,7 +36,7 @@ impl LightMarkers {
         .unwrap();
 
         // Cone mesh for direction indicators (tip at origin, base at -Z * length)
-        let (cone_v, cone_i) = primitives::generate_cone(0.08, 0.4, 16);
+        let (cone_v, cone_i) = primitives::generate_cone(0.15, 1.0, 16);
         let cone_vb = glium::VertexBuffer::new(display, &cone_v).unwrap();
         let cone_ib = glium::IndexBuffer::new(
             display,
@@ -62,6 +62,9 @@ impl LightMarkers {
         lights: &[Light],
         view: &Matrix4<f32>,
         projection: &Matrix4<f32>,
+        fog_enabled: bool,
+        fog_color: [f32; 3],
+        fog_density: f32,
     ) {
         let view_arr = mat4_to_array(view);
         let proj_arr = mat4_to_array(projection);
@@ -92,6 +95,9 @@ impl LightMarkers {
                 view: view_arr,
                 projection: proj_arr,
                 light_color: light.diffuse,
+                fog_enabled,
+                fog_color,
+                fog_density,
             };
 
             target
@@ -126,6 +132,9 @@ impl LightMarkers {
                     view: view_arr,
                     projection: proj_arr,
                     light_color: cone_color,
+                    fog_enabled,
+                    fog_color,
+                    fog_density,
                 };
 
                 target
@@ -174,6 +183,9 @@ struct MarkerUniforms {
     view: [[f32; 4]; 4],
     projection: [[f32; 4]; 4],
     light_color: [f32; 3],
+    fog_enabled: bool,
+    fog_color: [f32; 3],
+    fog_density: f32,
 }
 
 impl Uniforms for MarkerUniforms {
@@ -182,5 +194,8 @@ impl Uniforms for MarkerUniforms {
         f("u_view", UniformValue::Mat4(self.view));
         f("u_projection", UniformValue::Mat4(self.projection));
         f("u_light_color", UniformValue::Vec3(self.light_color));
+        f("u_fog_enabled", UniformValue::Bool(self.fog_enabled));
+        f("u_fog_color", UniformValue::Vec3(self.fog_color));
+        f("u_fog_density", UniformValue::Float(self.fog_density));
     }
 }

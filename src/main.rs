@@ -285,11 +285,13 @@ fn main() {
                             let projection: Matrix4<f32> =
                                 cgmath::perspective(Deg(55.0), aspect, 0.1, 200.0);
 
-                            // Fog color adjusts with day/night
-                            let fog_base =
-                                0.55 * state.day_factor + 0.05;
-                            let fog_color =
-                                [fog_base, fog_base, fog_base + 0.05];
+                            // Fog color = sky color for realistic vanishing
+                            let df = state.day_factor;
+                            let fog_color = [
+                                0.05 + 0.45 * df,
+                                0.05 + 0.55 * df,
+                                0.1  + 0.6  * df,
+                            ];
 
                             // Collect all lights (scene + moving object headlights)
                             let mut all_lights: Vec<_> = scene.lights.clone();
@@ -308,6 +310,7 @@ fn main() {
                                 },
                                 backface_culling:
                                     glium::draw_parameters::BackfaceCullingMode::CullClockwise,
+                                blend: glium::Blend::alpha_blending(),
                                 ..Default::default()
                             };
 
@@ -342,6 +345,9 @@ fn main() {
                                 &all_lights,
                                 &view,
                                 &projection,
+                                state.fog_enabled,
+                                fog_color,
+                                state.fog_density,
                             );
 
                             // Draw static objects

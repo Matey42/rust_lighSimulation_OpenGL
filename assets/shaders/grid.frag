@@ -128,10 +128,9 @@ void main() {
 
     // ── Fog ──
     if (u_fog_enabled) {
-        float fog_factor = exp(-pow(u_fog_density * dist_from_camera, 2.0));
-        fog_factor = clamp(fog_factor, 0.0, 1.0);
+        float fog_factor = clamp(exp(-pow(u_fog_density * dist_from_camera, 2.0)), 0.0, 1.0);
         color = mix(u_fog_color, color, fog_factor);
-        alpha *= mix(0.3, 1.0, fog_factor);
+        alpha *= fog_factor;
     }
 
     frag_color = vec4(color, alpha);

@@ -70,7 +70,7 @@ impl Default for UiState {
             active_camera: 0,
             use_phong: true,
             fog_enabled: true,
-            fog_density: 0.02,
+            fog_density: 0.04,
             day_factor: 0.8,
             day_night_speed: 0.15,
             day_night_auto: true,

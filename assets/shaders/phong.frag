@@ -112,13 +112,15 @@ void main() {
         result += calc_light(u_lights[i], normal, v_position_view, view_dir, base_color);
     }
 
-    // Fog (exponential squared)
+    // Fog (exponential squared) — blend toward fog color = sky color
+    // This naturally causes contrast loss (all colors converge) and vanishing
+    float alpha = 1.0;
     if (u_fog_enabled) {
         float dist = length(v_position_view);
-        float fog_factor = exp(-pow(u_fog_density * dist, 2.0));
-        fog_factor = clamp(fog_factor, 0.0, 1.0);
+        float fog_factor = clamp(exp(-pow(u_fog_density * dist, 2.0)), 0.0, 1.0);
         result = mix(u_fog_color, result, fog_factor);
+        alpha = fog_factor;
     }
 
-    frag_color = vec4(result, 1.0);
+    frag_color = vec4(result, alpha);
 }

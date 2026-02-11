@@ -1,9 +1,15 @@
 #version 330 core
 
 in vec3 v_normal_local;
+in vec3 v_view_pos;
 out vec4 frag_color;
 
 uniform vec3 u_light_color;
+
+// ── Fog ──
+uniform bool  u_fog_enabled;
+uniform vec3  u_fog_color;
+uniform float u_fog_density;
 
 void main() {
     // Slight shading so the shape looks 3D (brighter facing camera)
@@ -23,6 +29,14 @@ void main() {
     // Alpha: bright objects (sphere markers) stay opaque,
     // dim objects (cones) become translucent
     float alpha = clamp(brightness * 2.5, 0.15, 0.95);
+    
+    // Fog — markers fade and vanish in fog just like everything else
+    if (u_fog_enabled) {
+        float dist = length(v_view_pos);
+        float fog_factor = clamp(exp(-pow(u_fog_density * dist, 2.0)), 0.0, 1.0);
+        color = mix(u_fog_color, color, fog_factor);
+        alpha *= fog_factor;
+    }
     
     frag_color = vec4(color, alpha);
 }

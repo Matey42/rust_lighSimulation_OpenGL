@@ -56,6 +56,13 @@ void main() {
     vec3 norm       = normalize(normal_matrix * normal);
     vec3 view_dir   = normalize(-frag_pos);
 
+    // Fog factor (per-vertex)
+    float cam_dist = length(frag_pos);
+    v_fog_factor = 1.0;
+    if (u_fog_enabled) {
+        v_fog_factor = clamp(exp(-pow(u_fog_density * cam_dist, 2.0)), 0.0, 1.0);
+    }
+
     vec3 base_color = u_material_diffuse;
     vec3 result     = vec3(0.0);
 
@@ -91,11 +98,6 @@ void main() {
 
         result += ambient + (diffuse + specular) * attenuation * spot_intensity;
     }
-
-    // Fog calculation (per-vertex)
-    float dist = length(frag_pos);
-    v_fog_factor = exp(-pow(u_fog_density * dist, 2.0));
-    v_fog_factor = clamp(v_fog_factor, 0.0, 1.0);
 
     v_color = result;
     v_tex_coords_out = tex_coords;
