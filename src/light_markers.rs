@@ -122,7 +122,7 @@ impl LightMarkers {
                     light.linear_att,
                     light.quadratic_att,
                 );
-                let base_radius = effective_range * outer_angle.tan();
+                let base_radius = effective_range * outer_angle.tan() * 0.5;
 
                 // Build transform: translate to light pos, rotate to aim along dir,
                 // then scale the unit cone to real light dimensions
