@@ -1,8 +1,10 @@
+use std::path::Path;
+
 use cgmath::{Point3, Vector3};
 use glium::Display;
 
 use crate::light::Light;
-use crate::model::{mesh_from_data, Mesh};
+use crate::model::{load_obj, mesh_from_data, Mesh};
 use crate::primitives;
 use crate::types::{Material, Transform};
 
@@ -291,6 +293,25 @@ impl Scene {
             },
         };
 
+        // ── Car model (OBJ + MTL with per-part materials) ──
+        let car_meshes = load_obj(display, Path::new("assets/models/car/sportsCar.obj"));
+        let car = SceneObject {
+            name: "Car".into(),
+            meshes: car_meshes,
+            transform: Transform {
+                position: Vector3::new(12.0, 0.0, 0.0),
+                rotation: Vector3::new(0.0, -1.57, 0.0),
+                scale: Vector3::new(2.0, 2.0, 2.0),
+                ..Default::default()
+            },
+            material: Material {
+                ambient: [0.05, 0.05, 0.05],
+                diffuse: [0.5, 0.5, 0.5],
+                specular: [0.6, 0.6, 0.6],
+                shininess: 32.0,
+            },
+        };
+
         // ── Moving object (a cube that orbits at radius 4) ──
         let (mv_v, mv_i) = primitives::generate_cube(0.5);
         let moving_scene_obj = SceneObject {
@@ -338,7 +359,7 @@ impl Scene {
         );
 
         Scene {
-            static_objects: vec![sphere, torus, cube1, cube2, big_sphere],
+            static_objects: vec![sphere, torus, cube1, cube2, big_sphere, car],
             moving_object,
             lights: vec![point_light, fixed_spot, sun],
         }

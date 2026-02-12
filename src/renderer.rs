@@ -141,6 +141,7 @@ impl Renderer {
         let program = self.active_program();
 
         for mesh in &obj.meshes {
+            let mat = mesh.material.as_ref().unwrap_or(&obj.material);
             self.draw_mesh(
                 target,
                 mesh,
@@ -149,7 +150,7 @@ impl Renderer {
                 &view_arr,
                 &proj_arr,
                 &normal_arr,
-                &obj.material,
+                mat,
                 lights,
                 view,
                 fog_enabled,

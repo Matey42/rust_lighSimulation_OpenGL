@@ -4,12 +4,15 @@ use glium::Display;
 use glium::index::PrimitiveType;
 use tobj;
 
+use crate::types::Material;
 use crate::vertex::Vertex;
 
 /// A single sub-mesh loaded from a model file.
 pub struct Mesh {
     pub vertex_buffer: glium::VertexBuffer<Vertex>,
     pub index_buffer: glium::IndexBuffer<u32>,
+    /// Per-mesh material from the MTL file (if available).
+    pub material: Option<Material>,
 }
 
 /// Load all meshes from an OBJ file. Returns one `Mesh` per shape in the file.
@@ -21,8 +24,32 @@ pub fn load_obj(display: &Display<glium::glutin::surface::WindowSurface>, path: 
         ..Default::default()
     };
 
-    let (models, _materials) = tobj::load_obj(path, &load_options)
-        .unwrap_or_else(|e| panic!("Failed to load OBJ '{}': {}", path.display(), e));
+    // Resolve to absolute path so tobj finds the MTL file relative to the OBJ directory
+    let abs_path = if path.is_relative() {
+        std::env::current_dir().unwrap().join(path)
+    } else {
+        path.to_path_buf()
+    };
+
+    let (models, materials_result) = tobj::load_obj(&abs_path, &load_options)
+        .unwrap_or_else(|e| panic!("Failed to load OBJ '{}': {}", abs_path.display(), e));
+
+    // Parse MTL materials → our Material type
+    let raw_mats = match materials_result {
+        Ok(mats) => mats,
+        Err(_) => Vec::new(),
+    };
+
+    let mtl_materials: Vec<Material> = raw_mats
+        .iter()
+        .map(|m| {
+            let ka = m.ambient.unwrap_or([0.1, 0.1, 0.1]);
+            let kd = m.diffuse.unwrap_or([0.8, 0.8, 0.8]);
+            let ks = m.specular.unwrap_or([1.0, 1.0, 1.0]);
+            let ns = m.shininess.unwrap_or(32.0);
+            Material { ambient: ka, diffuse: kd, specular: ks, shininess: ns }
+        })
+        .collect();
 
     let mut meshes = Vec::new();
 
@@ -137,9 +164,14 @@ pub fn load_obj(display: &Display<glium::glutin::surface::WindowSurface>, path: 
         let ib = glium::IndexBuffer::new(display, PrimitiveType::TrianglesList, indices)
             .expect("Failed to create index buffer");
 
+        let mesh_material = model.mesh.material_id
+            .and_then(|id| mtl_materials.get(id))
+            .cloned();
+
         meshes.push(Mesh {
             vertex_buffer: vb,
             index_buffer: ib,
+            material: mesh_material,
         });
     }
 
@@ -161,5 +193,6 @@ pub fn mesh_from_data(
             indices,
         )
         .expect("Failed to create index buffer"),
+        material: None,
     }
 }
