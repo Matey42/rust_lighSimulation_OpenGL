@@ -2,9 +2,9 @@ use cgmath::Matrix4;
 use glium::uniforms::{UniformValue, Uniforms};
 use glium::{DrawParameters, Surface};
 
-use crate::light::{Light, LightKind};
-use crate::types::mat4_to_array;
-use crate::vertex::Vertex;
+use crate::core::light::{Light, LightKind};
+use crate::core::types::mat4_to_array;
+use crate::core::vertex::Vertex;
 
 // ───────────────────── Grid Configuration ─────────────────────
 
@@ -45,8 +45,8 @@ impl Grid {
     /// Create the grid. Generates a large subdivided quad so the fragment shader
     /// has enough geometry to rasterize over.
     pub fn new(display: &glium::Display<glium::glutin::surface::WindowSurface>) -> Self {
-        let vert_src = include_str!("../assets/shaders/grid.vert");
-        let frag_src = include_str!("../assets/shaders/grid.frag");
+        let vert_src = include_str!("../../assets/shaders/grid.vert");
+        let frag_src = include_str!("../../assets/shaders/grid.frag");
 
         let program = glium::Program::from_source(display, vert_src, frag_src, None)
             .expect("Failed to compile grid shaders");

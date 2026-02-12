@@ -2,10 +2,10 @@ use cgmath::{InnerSpace, Matrix4, Vector3};
 use glium::uniforms::{UniformValue, Uniforms};
 use glium::{DrawParameters, Surface};
 
-use crate::light::{Light, LightKind};
-use crate::primitives;
-use crate::types::mat4_to_array;
-use crate::vertex::Vertex;
+use crate::core::light::{Light, LightKind};
+use crate::core::types::mat4_to_array;
+use crate::core::vertex::Vertex;
+use crate::scene::primitives;
 
 /// Renders small glowing spheres at each light source position
 /// and direction cones for spot lights.
@@ -19,8 +19,8 @@ pub struct LightMarkers {
 
 impl LightMarkers {
     pub fn new(display: &glium::Display<glium::glutin::surface::WindowSurface>) -> Self {
-        let vert_src = include_str!("../assets/shaders/light_marker.vert");
-        let frag_src = include_str!("../assets/shaders/light_marker.frag");
+        let vert_src = include_str!("../../assets/shaders/light_marker.vert");
+        let frag_src = include_str!("../../assets/shaders/light_marker.frag");
 
         let program = glium::Program::from_source(display, vert_src, frag_src, None)
             .expect("Failed to compile light marker shaders");

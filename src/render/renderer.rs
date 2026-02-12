@@ -2,10 +2,10 @@ use glium::uniforms::{AsUniformValue, UniformValue, Uniforms};
 use glium::{DrawParameters, Surface};
 use cgmath::Matrix4;
 
-use crate::light::Light;
-use crate::model::Mesh;
+use crate::core::light::Light;
+use crate::core::types::{mat3_to_array, mat4_to_array, Material};
+use crate::scene::model::Mesh;
 use crate::scene::SceneObject;
-use crate::types::{mat3_to_array, mat4_to_array, Material};
 
 /// Maximum number of lights supported by the shaders.
 const MAX_LIGHTS: usize = 8;
@@ -81,10 +81,10 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(display: &glium::Display<glium::glutin::surface::WindowSurface>) -> Self {
-        let phong_vert = include_str!("../assets/shaders/phong.vert");
-        let phong_frag = include_str!("../assets/shaders/phong.frag");
-        let gouraud_vert = include_str!("../assets/shaders/gouraud.vert");
-        let gouraud_frag = include_str!("../assets/shaders/gouraud.frag");
+        let phong_vert = include_str!("../../assets/shaders/phong.vert");
+        let phong_frag = include_str!("../../assets/shaders/phong.frag");
+        let gouraud_vert = include_str!("../../assets/shaders/gouraud.vert");
+        let gouraud_frag = include_str!("../../assets/shaders/gouraud.frag");
 
         let phong_program = glium::Program::from_source(display, phong_vert, phong_frag, None)
             .expect("Failed to compile Phong shaders");

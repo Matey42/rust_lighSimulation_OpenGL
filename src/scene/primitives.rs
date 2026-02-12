@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use crate::vertex::Vertex;
+use crate::core::vertex::Vertex;
 
 /// Generate a UV sphere with the given number of stacks (latitude) and
 /// sectors (longitude). Returns a list of vertices with tangent/bitangent

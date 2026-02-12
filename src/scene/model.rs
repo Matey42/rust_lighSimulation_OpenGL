@@ -5,8 +5,8 @@ use glium::Display;
 use glium::index::PrimitiveType;
 use tobj;
 
-use crate::types::Material;
-use crate::vertex::Vertex;
+use crate::core::types::Material;
+use crate::core::vertex::Vertex;
 
 /// A single sub-mesh loaded from a model file.
 pub struct Mesh {

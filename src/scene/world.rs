@@ -3,10 +3,10 @@ use std::path::Path;
 use cgmath::{Point3, Vector3};
 use glium::Display;
 
-use crate::light::Light;
-use crate::model::{load_obj, mesh_from_data, Mesh};
-use crate::primitives;
-use crate::types::{Material, Transform};
+use crate::core::light::Light;
+use crate::core::types::{Material, Transform};
+use crate::scene::model::{load_obj, mesh_from_data, Mesh};
+use crate::scene::primitives;
 
 // ────────────────────── Scene Object ──────────────────────
 
