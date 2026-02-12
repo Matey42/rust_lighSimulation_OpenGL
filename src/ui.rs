@@ -80,7 +80,7 @@ impl Default for UiState {
             active_camera: 0,
             use_phong: true,
             fog_enabled: true,
-            fog_density: 0.04,
+            fog_density: 0.02,
             day_factor: 0.8,
             day_night_speed: 0.15,
             day_night_auto: true,
@@ -243,7 +243,7 @@ pub fn draw_ui(ctx: &egui::Context, state: &mut UiState) {
                     ui.checkbox(&mut state.fog_enabled, "Enable fog");
                     ui.add_enabled(
                         state.fog_enabled,
-                        egui::Slider::new(&mut state.fog_density, 0.02..=0.1)
+                        egui::Slider::new(&mut state.fog_density, 0.0..=0.1)
                             .text("Density")
                             .fixed_decimals(3),
                     );

@@ -123,13 +123,14 @@ pub fn generate_torus(
             let first = i * (minor_segments + 1) + j;
             let second = first + minor_segments + 1;
 
+            // Reversed winding so front faces align with outward normals
             indices.push(first);
-            indices.push(second);
             indices.push(first + 1);
+            indices.push(second);
 
             indices.push(first + 1);
-            indices.push(second);
             indices.push(second + 1);
+            indices.push(second);
         }
     }
 

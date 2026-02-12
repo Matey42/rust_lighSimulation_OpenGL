@@ -508,7 +508,7 @@ fn handle_key(key: &Key, state: &mut UiState) {
                 println!("[Fog density] {:.3}", state.fog_density);
             }
             "-" => {
-                state.fog_density = (state.fog_density - 0.005).max(0.02);
+                state.fog_density = (state.fog_density - 0.005).max(0.0);
                 println!("[Fog density] {:.3}", state.fog_density);
             }
             "n" | "N" => {
