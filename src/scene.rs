@@ -189,6 +189,8 @@ pub struct Scene {
     pub static_objects: Vec<SceneObject>,
     pub moving_object: MovingObject,
     pub lights: Vec<Light>,
+    /// Dynamically loaded car model (loaded/unloaded from the panel).
+    pub car_model: Option<SceneObject>,
 }
 
 impl Scene {
@@ -293,25 +295,6 @@ impl Scene {
             },
         };
 
-        // ── Car model (OBJ + MTL with per-part materials) ──
-        let car_meshes = load_obj(display, Path::new("assets/models/car/sportsCar.obj"));
-        let car = SceneObject {
-            name: "Car".into(),
-            meshes: car_meshes,
-            transform: Transform {
-                position: Vector3::new(12.0, 0.0, 0.0),
-                rotation: Vector3::new(0.0, -1.57, 0.0),
-                scale: Vector3::new(2.0, 2.0, 2.0),
-                ..Default::default()
-            },
-            material: Material {
-                ambient: [0.05, 0.05, 0.05],
-                diffuse: [0.5, 0.5, 0.5],
-                specular: [0.6, 0.6, 0.6],
-                shininess: 32.0,
-            },
-        };
-
         // ── Moving object (a cube that orbits at radius 4) ──
         let (mv_v, mv_i) = primitives::generate_cube(0.5);
         let moving_scene_obj = SceneObject {
@@ -359,9 +342,39 @@ impl Scene {
         );
 
         Scene {
-            static_objects: vec![sphere, torus, cube1, cube2, big_sphere, car],
+            static_objects: vec![sphere, torus, cube1, cube2, big_sphere],
             moving_object,
             lights: vec![point_light, fixed_spot, sun],
+            car_model: None,
         }
+    }
+
+    /// Load the car model on demand.
+    pub fn load_car(&mut self, display: &Display<glium::glutin::surface::WindowSurface>) {
+        if self.car_model.is_some() {
+            return; // Already loaded
+        }
+        let car_meshes = load_obj(display, Path::new("assets/models/car/sportsCar.obj"));
+        self.car_model = Some(SceneObject {
+            name: "Car".into(),
+            meshes: car_meshes,
+            transform: Transform {
+                position: Vector3::new(12.0, 0.0, 0.0),
+                rotation: Vector3::new(0.0, -1.57, 0.0),
+                scale: Vector3::new(2.0, 2.0, 2.0),
+                ..Default::default()
+            },
+            material: Material {
+                ambient: [0.05, 0.05, 0.05],
+                diffuse: [0.5, 0.5, 0.5],
+                specular: [0.6, 0.6, 0.6],
+                shininess: 32.0,
+            },
+        });
+    }
+
+    /// Unload the car model to free GPU memory.
+    pub fn unload_car(&mut self) {
+        self.car_model = None;
     }
 }

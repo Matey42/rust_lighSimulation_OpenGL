@@ -42,6 +42,10 @@ pub struct UiState {
     pub grid_fade_radius: f32,
     pub grid_line_width: f32,
 
+    // Models
+    pub show_car: bool,
+    pub car_loaded: bool,
+
     // Manual driving of the moving object
     pub manual_drive: bool,
     pub drive_speed: f32,
@@ -99,6 +103,8 @@ impl Default for UiState {
             grid_sub_size: gc.sub_grid_size,
             grid_fade_radius: gc.fade_radius,
             grid_line_width: gc.line_width,
+            show_car: false,
+            car_loaded: false,
             manual_drive: false,
             drive_speed: 5.0,
             drive_turn_speed: 2.0,
@@ -327,6 +333,16 @@ pub fn draw_ui(ctx: &egui::Context, state: &mut UiState) {
                             .text("Intensity")
                             .fixed_decimals(2),
                     );
+                });
+
+                // ── Models ──
+                ui.collapsing(RichText::new("🚗  Models").size(15.0), |ui| {
+                    ui.checkbox(&mut state.show_car, "Show car model");
+                    if state.show_car && !state.car_loaded {
+                        ui.label(RichText::new("Loading...").color(Color32::YELLOW));
+                    } else if state.show_car && state.car_loaded {
+                        ui.label(RichText::new("Loaded (38 draw calls)").color(Color32::GREEN));
+                    }
                 });
 
                 // ── Grid ──

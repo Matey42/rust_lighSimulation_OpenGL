@@ -429,6 +429,31 @@ fn main() {
                                 );
                             }
 
+                            // Load / unload car model based on UI toggle
+                            if state.show_car && !state.car_loaded {
+                                scene.load_car(&display);
+                                state.car_loaded = true;
+                            } else if !state.show_car && state.car_loaded {
+                                scene.unload_car();
+                                state.car_loaded = false;
+                            }
+
+                            // Draw car model (if loaded)
+                            if let Some(car) = &scene.car_model {
+                                renderer.draw_object(
+                                    &mut target,
+                                    car,
+                                    &view,
+                                    &projection,
+                                    &all_lights,
+                                    state.fog_enabled,
+                                    fog_color,
+                                    state.fog_density,
+                                    ambient_strength,
+                                    &params,
+                                );
+                            }
+
                             // Draw the moving object
                             renderer.draw_object(
                                 &mut target,
