@@ -30,7 +30,6 @@ A real-time 3D scene renderer written in **Rust** using **glium** (OpenGL 3.3 co
 ```bash
 # Clone the repository
 git clone <repo-url>
-cd gk4
 
 # Build in release mode (recommended for smooth FPS)
 cargo build --release
@@ -216,44 +215,3 @@ Two normal maps can be toggled from the panel:
 | Sphere (red, front-right) | `assets/brick_normalmap.png` |
 | BigSphere (grey, far back) | `assets/normal_map.jpg` |
 
----
-
-## Project Structure
-
-```
-gk4/
-├── assets/
-│   ├── shaders/
-│   │   ├── phong.vert / phong.frag       # Per-fragment (Phong) shading
-│   │   ├── gouraud.vert / gouraud.frag   # Per-vertex (Gouraud) shading
-│   │   ├── grid.vert / grid.frag         # Infinite grid floor
-│   │   └── light_marker.vert / .frag     # Light source markers & cones
-│   ├── models/car/                        # OBJ + MTL car model
-│   ├── brick_normalmap.png                # Brick normal map
-│   └── normal_map.jpg                     # Abstract normal map
-├── src/
-│   ├── main.rs           # Entry point, event loop, input handling
-│   ├── scene.rs          # Scene objects, moving object, lights
-│   ├── renderer.rs       # Uniform management, draw calls
-│   ├── camera.rs         # 5 camera types (Static, Tracking, TPP, FPP, Free)
-│   ├── light.rs          # Light struct (Point, Spot, Directional)
-│   ├── light_markers.rs  # Glowing spheres & direction cones at light positions
-│   ├── grid.rs           # Procedural grid floor
-│   ├── model.rs          # OBJ/MTL loader with mesh merging
-│   ├── primitives.rs     # Sphere, torus, cube, cone generators
-│   ├── types.rs          # Material, Transform
-│   ├── vertex.rs         # Vertex struct (position, normal, UV, TBN)
-│   └── ui.rs             # egui options panel
-├── Cargo.toml
-└── README.md
-```
-
-### Dependencies
-
-| Crate | Purpose |
-|-------|---------|
-| `glium` 0.36 | OpenGL 3.3 context & rendering |
-| `egui` 0.33 + `egui_glium` 0.33 | Immediate-mode GUI |
-| `cgmath` 0.18 | Linear algebra (vectors, matrices) |
-| `tobj` 4.0 | OBJ/MTL model loading |
-| `image` 0.25 | Texture image loading (PNG, JPG) |

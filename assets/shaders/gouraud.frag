@@ -8,6 +8,8 @@ out vec4 frag_color;
 
 uniform bool      u_has_diffuse_tex;
 uniform sampler2D u_diffuse_tex;
+uniform bool      u_has_normal_map;
+uniform sampler2D u_normal_map;
 uniform bool      u_fog_enabled;
 uniform vec3      u_fog_color;
 

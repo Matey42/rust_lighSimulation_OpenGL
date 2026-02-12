@@ -180,7 +180,7 @@ impl MovingObject {
     }
 
     pub fn yaw(&self) -> f32 {
-        self.orbit_angle
+        self.obj.transform.rotation.y
     }
 }
 

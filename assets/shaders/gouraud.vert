@@ -19,6 +19,10 @@ uniform vec3  u_material_diffuse;
 uniform vec3  u_material_specular;
 uniform float u_material_shininess;
 
+// ── Normal mapping ──
+uniform bool      u_has_normal_map;
+uniform sampler2D u_normal_map;
+
 // ── Light structures (max 8) ──
 #define MAX_LIGHTS 8
 
@@ -54,6 +58,18 @@ void main() {
     vec4 pos_view   = view * model * vec4(position, 1.0);
     vec3 frag_pos   = pos_view.xyz;
     vec3 norm       = normalize(normal_matrix * normal);
+
+    // Normal mapping: perturb vertex normal via TBN matrix
+    if (u_has_normal_map) {
+        vec3 T = normalize(normal_matrix * tangent);
+        vec3 B = normalize(normal_matrix * bitangent);
+        vec3 N = norm;
+        mat3 TBN = mat3(T, B, N);
+        vec3 map_n = textureLod(u_normal_map, tex_coords, 0.0).rgb;
+        map_n = map_n * 2.0 - 1.0;
+        norm = normalize(TBN * map_n);
+    }
+
     vec3 view_dir   = normalize(-frag_pos);
 
     // Fog factor (per-vertex)
