@@ -35,8 +35,8 @@ impl LightMarkers {
         )
         .unwrap();
 
-        // Cone mesh for direction indicators (tip at origin, base at -Z * length)
-        let (cone_v, cone_i) = primitives::generate_cone(0.15, 1.0, 16);
+        // Unit cone mesh (radius=1, length=1) — scaled per-light in draw()
+        let (cone_v, cone_i) = primitives::generate_cone(1.0, 1.0, 32);
         let cone_vb = glium::VertexBuffer::new(display, &cone_v).unwrap();
         let cone_ib = glium::IndexBuffer::new(
             display,
@@ -95,6 +95,7 @@ impl LightMarkers {
                 view: view_arr,
                 projection: proj_arr,
                 light_color: light.diffuse,
+                alpha: 1.0,
                 fog_enabled,
                 fog_color,
                 fog_density,
@@ -114,27 +115,51 @@ impl LightMarkers {
             if light.kind == LightKind::Spot {
                 let dir = light.direction.normalize();
 
-                // Build a rotation matrix that aligns -Z with `dir`
+                // Compute realistic cone dimensions from light properties
+                let outer_angle = light.outer_cutoff.acos(); // outer_cutoff = cos(angle)
+                let effective_range = compute_light_range(
+                    light.constant_att,
+                    light.linear_att,
+                    light.quadratic_att,
+                );
+                let base_radius = effective_range * outer_angle.tan();
+
+                // Build transform: translate to light pos, rotate to aim along dir,
+                // then scale the unit cone to real light dimensions
                 let cone_model = Matrix4::from_translation(Vector3::new(pos.x, pos.y, pos.z))
-                    * look_rotation(dir);
+                    * look_rotation(dir)
+                    * Matrix4::from_nonuniform_scale(base_radius, base_radius, effective_range);
 
                 let cone_model_arr = mat4_to_array(&cone_model);
 
-                // Cone is delicate / translucent, softly tinted with light color
+                // Cone tinted with light color, kept fairly bright for visibility
                 let cone_color = [
-                    light.diffuse[0] * 0.3,
-                    light.diffuse[1] * 0.3,
-                    light.diffuse[2] * 0.3,
-];
+                    light.diffuse[0] * 0.5,
+                    light.diffuse[1] * 0.5,
+                    light.diffuse[2] * 0.5,
+                ];
 
                 let cone_uniforms = MarkerUniforms {
                     model: cone_model_arr,
                     view: view_arr,
                     projection: proj_arr,
                     light_color: cone_color,
+                    alpha: 0.13,
                     fog_enabled,
                     fog_color,
                     fog_density,
+                };
+
+                // Transparent cone: depth test ON but depth write OFF
+                // so objects behind are still visible
+                let cone_params = DrawParameters {
+                    depth: glium::Depth {
+                        test: glium::draw_parameters::DepthTest::IfLessOrEqual,
+                        write: false,
+                        ..Default::default()
+                    },
+                    blend: glium::Blend::alpha_blending(),
+                    ..Default::default()
                 };
 
                 target
@@ -143,12 +168,34 @@ impl LightMarkers {
                         &self.cone_ib,
                         &self.program,
                         &cone_uniforms,
-                        &params,
+                        &cone_params,
                     )
                     .expect("Light cone draw failed");
             }
         }
     }
+}
+
+/// Compute the effective range of a light source where intensity drops to ~5%.
+/// Uses the attenuation formula: I = 1 / (c + l*d + q*d²).
+fn compute_light_range(constant: f32, linear: f32, quadratic: f32) -> f32 {
+    let threshold = 20.0; // 1 / 0.05
+    let a = quadratic;
+    let b = linear;
+    let c = constant - threshold;
+    if a <= 0.0 {
+        // Linear-only falloff
+        if b > 0.0 {
+            return (-c / b).clamp(2.0, 15.0);
+        }
+        return 10.0;
+    }
+    let discriminant = b * b - 4.0 * a * c;
+    if discriminant < 0.0 {
+        return 10.0;
+    }
+    let d = (-b + discriminant.sqrt()) / (2.0 * a);
+    d.clamp(2.0, 15.0)
 }
 
 /// Build a rotation matrix that aligns the -Z axis with the given direction.
@@ -183,6 +230,7 @@ struct MarkerUniforms {
     view: [[f32; 4]; 4],
     projection: [[f32; 4]; 4],
     light_color: [f32; 3],
+    alpha: f32,
     fog_enabled: bool,
     fog_color: [f32; 3],
     fog_density: f32,
@@ -194,6 +242,7 @@ impl Uniforms for MarkerUniforms {
         f("u_view", UniformValue::Mat4(self.view));
         f("u_projection", UniformValue::Mat4(self.projection));
         f("u_light_color", UniformValue::Vec3(self.light_color));
+        f("u_alpha", UniformValue::Float(self.alpha));
         f("u_fog_enabled", UniformValue::Bool(self.fog_enabled));
         f("u_fog_color", UniformValue::Vec3(self.fog_color));
         f("u_fog_density", UniformValue::Float(self.fog_density));

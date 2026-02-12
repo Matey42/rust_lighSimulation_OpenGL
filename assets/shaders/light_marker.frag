@@ -5,6 +5,7 @@ in vec3 v_view_pos;
 out vec4 frag_color;
 
 uniform vec3 u_light_color;
+uniform float u_alpha;
 
 // ── Fog ──
 uniform bool  u_fog_enabled;
@@ -28,7 +29,7 @@ void main() {
     
     // Alpha: bright objects (sphere markers) stay opaque,
     // dim objects (cones) become translucent
-    float alpha = clamp(brightness * 2.5, 0.15, 0.95);
+    float alpha = clamp(brightness * 2.5, 0.15, 0.95) * u_alpha;
     
     // Fog — markers fade and vanish in fog just like everything else
     if (u_fog_enabled) {

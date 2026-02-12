@@ -219,6 +219,18 @@ fn main() {
                                 }
                             }
 
+                            // Continuously update spotlight aim from arrow keys
+                            // (works in parallel with WASD driving)
+                            if state.active_camera != 4 {
+                                let spot_speed = 1.2; // radians per second
+                                let yaw_input = if state.key_arrow_left { 1.0f32 } else { 0.0 }
+                                    - if state.key_arrow_right { 1.0 } else { 0.0 };
+                                let pitch_input = if state.key_arrow_up { 1.0f32 } else { 0.0 }
+                                    - if state.key_arrow_down { 1.0 } else { 0.0 };
+                                state.spotlight_yaw_offset = (state.spotlight_yaw_offset + yaw_input * spot_speed * dt).clamp(-1.0, 1.0);
+                                state.spotlight_pitch_offset = (state.spotlight_pitch_offset + pitch_input * spot_speed * dt).clamp(-1.0, 1.0);
+                            }
+
                             // Apply spotlight aim (in local cube space, like real headlights)
                             scene.moving_object.light_aim_yaw =
                                 state.spotlight_yaw_offset * 0.5;
@@ -560,30 +572,8 @@ fn handle_key(key: &Key, state: &mut UiState) {
                 if state.manual_drive { "Manual" } else { "Animation" }
             );
         }
-        Key::Named(NamedKey::ArrowLeft) => {
-            if state.active_camera != 4 {
-                state.spotlight_yaw_offset += 0.05;
-                println!("[Spotlight yaw] {:.2}", state.spotlight_yaw_offset);
-            }
-        }
-        Key::Named(NamedKey::ArrowRight) => {
-            if state.active_camera != 4 {
-                state.spotlight_yaw_offset -= 0.05;
-                println!("[Spotlight yaw] {:.2}", state.spotlight_yaw_offset);
-            }
-        }
-        Key::Named(NamedKey::ArrowUp) => {
-            if state.active_camera != 4 {
-                state.spotlight_pitch_offset += 0.05;
-                println!("[Spotlight pitch] {:.2}", state.spotlight_pitch_offset);
-            }
-        }
-        Key::Named(NamedKey::ArrowDown) => {
-            if state.active_camera != 4 {
-                state.spotlight_pitch_offset -= 0.05;
-                println!("[Spotlight pitch] {:.2}", state.spotlight_pitch_offset);
-            }
-        }
+        // Arrow keys now handled continuously per-frame in the update loop
+        // so they work in parallel with WASD driving
         _ => {}
     }
 }
