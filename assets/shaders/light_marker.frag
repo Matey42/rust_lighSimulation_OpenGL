@@ -2,6 +2,7 @@
 
 in vec3 v_normal_local;
 in vec3 v_view_pos;
+in vec3 v_local_pos;
 out vec4 frag_color;
 
 uniform vec3 u_light_color;
@@ -30,6 +31,13 @@ void main() {
     // Alpha: bright objects (sphere markers) stay opaque,
     // dim objects (cones) become translucent
     float alpha = clamp(brightness * 2.5, 0.15, 0.95) * u_alpha;
+    
+    // Cone fade: v_local_pos.z goes from 0 (tip) to -1 (base) in the unit cone.
+    // Smoothly fade out the last 60% of the cone length so it dissolves into
+    // the background like real light — bright near the source, invisible at range.
+    float t = clamp(-v_local_pos.z, 0.0, 1.0); // 0=tip, 1=base
+    float cone_fade = 1.0 - smoothstep(0.15, 1.0, t);
+    alpha *= cone_fade;
     
     // Fog — markers fade and vanish in fog just like everything else
     if (u_fog_enabled) {

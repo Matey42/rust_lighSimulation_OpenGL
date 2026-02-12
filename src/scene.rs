@@ -17,6 +17,8 @@ pub struct SceneObject {
     pub meshes: Vec<Mesh>,
     pub transform: Transform,
     pub material: Material,
+    /// Optional normal map texture (applied in Phong shading).
+    pub normal_map: Option<glium::texture::Texture2d>,
 }
 
 // ────────────────────── Moving Object ─────────────────────
@@ -225,6 +227,7 @@ impl Scene {
                 specular: [1.0, 1.0, 1.0],
                 shininess: 64.0,
             },
+            normal_map: None,
         };
 
         // ── Torus (another smooth surface) — front-left ──
@@ -243,6 +246,7 @@ impl Scene {
                 specular: [1.0, 1.0, 1.0],
                 shininess: 48.0,
             },
+            normal_map: None,
         };
 
         // ── Static cubes — back-left and back-right ──
@@ -261,6 +265,7 @@ impl Scene {
                 specular: [0.5, 0.5, 0.5],
                 shininess: 16.0,
             },
+            normal_map: None,
         };
         let cube2 = SceneObject {
             name: "Cube2".into(),
@@ -276,6 +281,7 @@ impl Scene {
                 specular: [0.6, 0.6, 0.6],
                 shininess: 24.0,
             },
+            normal_map: None,
         };
 
         // ── Large sphere — far back center ──
@@ -293,6 +299,7 @@ impl Scene {
                 specular: [0.9, 0.9, 0.9],
                 shininess: 96.0,
             },
+            normal_map: None,
         };
 
         // ── Moving object (a cube that orbits at radius 4) ──
@@ -310,6 +317,7 @@ impl Scene {
                 specular: [1.0, 1.0, 1.0],
                 shininess: 32.0,
             },
+            normal_map: None,
         };
         let moving_object = MovingObject::new(moving_scene_obj, 4.0);
 
@@ -370,6 +378,7 @@ impl Scene {
                 specular: [0.6, 0.6, 0.6],
                 shininess: 32.0,
             },
+            normal_map: None,
         });
     }
 
@@ -377,4 +386,43 @@ impl Scene {
     pub fn unload_car(&mut self) {
         self.car_model = None;
     }
+
+    /// Apply normal maps to the two spheres in the scene.
+    pub fn load_normal_maps(&mut self, display: &Display<glium::glutin::surface::WindowSurface>) {
+        // Sphere (index 0) → brick normal map
+        if let Some(sphere) = self.static_objects.get_mut(0) {
+            sphere.normal_map = Some(load_texture(display, "assets/brick_normalmap.png"));
+        }
+        // BigSphere (index 4) → normal_map.jpg
+        if let Some(big_sphere) = self.static_objects.get_mut(4) {
+            big_sphere.normal_map = Some(load_texture(display, "assets/normal_map.jpg"));
+        }
+    }
+
+    /// Remove normal maps from the spheres.
+    pub fn unload_normal_maps(&mut self) {
+        if let Some(sphere) = self.static_objects.get_mut(0) {
+            sphere.normal_map = None;
+        }
+        if let Some(big_sphere) = self.static_objects.get_mut(4) {
+            big_sphere.normal_map = None;
+        }
+    }
+}
+
+/// Load an image file into a glium Texture2d.
+fn load_texture(
+    display: &Display<glium::glutin::surface::WindowSurface>,
+    path: &str,
+) -> glium::texture::Texture2d {
+    let img = image::open(path)
+        .unwrap_or_else(|e| panic!("Failed to load texture '{}': {}", path, e))
+        .to_rgba8();
+    let dims = img.dimensions();
+    let raw = glium::texture::RawImage2d::from_raw_rgba_reversed(
+        &img.into_raw(),
+        dims,
+    );
+    glium::texture::Texture2d::new(display, raw)
+        .expect("Failed to create texture")
 }

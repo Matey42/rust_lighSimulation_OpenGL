@@ -46,6 +46,10 @@ pub struct UiState {
     pub show_car: bool,
     pub car_loaded: bool,
 
+    // Normal maps
+    pub show_normal_maps: bool,
+    pub normal_maps_loaded: bool,
+
     // Manual driving of the moving object
     pub manual_drive: bool,
     pub drive_speed: f32,
@@ -105,6 +109,8 @@ impl Default for UiState {
             grid_line_width: gc.line_width,
             show_car: false,
             car_loaded: false,
+            show_normal_maps: false,
+            normal_maps_loaded: false,
             manual_drive: false,
             drive_speed: 5.0,
             drive_turn_speed: 2.0,
@@ -342,6 +348,15 @@ pub fn draw_ui(ctx: &egui::Context, state: &mut UiState) {
                         ui.label(RichText::new("Loading...").color(Color32::YELLOW));
                     } else if state.show_car && state.car_loaded {
                         ui.label(RichText::new("Loaded (38 draw calls)").color(Color32::GREEN));
+                    }
+                    ui.separator();
+                    ui.checkbox(&mut state.show_normal_maps, "Normal maps on spheres");
+                    if state.show_normal_maps {
+                        ui.label(
+                            RichText::new("Sphere → brick_normalmap.png\nBigSphere → normal_map.jpg")
+                                .color(Color32::from_rgb(140, 200, 255))
+                                .size(12.0),
+                        );
                     }
                 });
 

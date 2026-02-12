@@ -151,6 +151,7 @@ impl Renderer {
                 &proj_arr,
                 &normal_arr,
                 mat,
+                obj.normal_map.as_ref(),
                 lights,
                 view,
                 fog_enabled,
@@ -173,6 +174,7 @@ impl Renderer {
         projection: &[[f32; 4]; 4],
         normal_matrix: &[[f32; 3]; 3],
         material: &Material,
+        normal_map: Option<&glium::texture::Texture2d>,
         lights: &[Light],
         view_mat: &Matrix4<f32>,
         fog_enabled: bool,
@@ -197,7 +199,7 @@ impl Renderer {
         u.add_float("u_material_shininess", material.shininess);
 
         u.add_bool("u_has_diffuse_tex", false);
-        u.add_bool("u_has_normal_map", false);
+        u.add_bool("u_has_normal_map", normal_map.is_some());
 
         u.add_int("u_num_lights", num_lights);
 
@@ -246,7 +248,7 @@ impl Renderer {
         let combined = CombinedUniforms {
             dynamic: u,
             diffuse_tex: &self.dummy_texture,
-            normal_map: &self.dummy_texture,
+            normal_map: normal_map.unwrap_or(&self.dummy_texture),
         };
 
         target

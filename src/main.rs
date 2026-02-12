@@ -450,6 +450,15 @@ fn main() {
                                 state.car_loaded = false;
                             }
 
+                            // Load / unload normal maps based on UI toggle
+                            if state.show_normal_maps && !state.normal_maps_loaded {
+                                scene.load_normal_maps(&display);
+                                state.normal_maps_loaded = true;
+                            } else if !state.show_normal_maps && state.normal_maps_loaded {
+                                scene.unload_normal_maps();
+                                state.normal_maps_loaded = false;
+                            }
+
                             // Draw car model (if loaded)
                             if let Some(car) = &scene.car_model {
                                 renderer.draw_object(
