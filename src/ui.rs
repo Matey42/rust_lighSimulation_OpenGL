@@ -25,6 +25,16 @@ pub struct UiState {
     pub spotlight_yaw_offset: f32,
     pub spotlight_pitch_offset: f32,
 
+    // Light controls
+    pub light_point_enabled: bool,
+    pub light_point_intensity: f32,
+    pub light_spot_enabled: bool,
+    pub light_spot_intensity: f32,
+    pub light_sun_enabled: bool,
+    pub light_sun_intensity: f32,
+    pub light_headlights_enabled: bool,
+    pub light_headlights_intensity: f32,
+
     // Grid
     pub grid_visible: bool,
     pub grid_size: f32,
@@ -76,6 +86,14 @@ impl Default for UiState {
             day_night_auto: true,
             spotlight_yaw_offset: 0.0,
             spotlight_pitch_offset: 0.0,
+            light_point_enabled: true,
+            light_point_intensity: 1.0,
+            light_spot_enabled: true,
+            light_spot_intensity: 1.0,
+            light_sun_enabled: true,
+            light_sun_intensity: 1.0,
+            light_headlights_enabled: true,
+            light_headlights_intensity: 1.0,
             grid_visible: true,
             grid_size: gc.grid_size,
             grid_sub_size: gc.sub_grid_size,
@@ -174,22 +192,21 @@ pub fn draw_ui(ctx: &egui::Context, state: &mut UiState) {
                     }
                 });
 
-                // ── Shading ──
-                ui.collapsing(RichText::new("🎨  Shading").size(15.0), |ui| {
-                    ui.horizontal(|ui| {
-                        ui.selectable_value(&mut state.use_phong, true, "Phong");
-                        ui.selectable_value(&mut state.use_phong, false, "Gouraud");
-                    });
-                });
-
-                // ── Fog ──
-                ui.collapsing(RichText::new("🌫  Fog").size(15.0), |ui| {
-                    ui.checkbox(&mut state.fog_enabled, "Enable fog");
-                    ui.add_enabled(
-                        state.fog_enabled,
-                        egui::Slider::new(&mut state.fog_density, 0.0..=0.2)
-                            .text("Density")
-                            .fixed_decimals(3),
+                // ── Day / Night ──
+                ui.collapsing(RichText::new("🌗  Day / Night").size(15.0), |ui| {
+                    ui.checkbox(&mut state.day_night_auto, "Auto cycle");
+                    if state.day_night_auto {
+                        ui.add(
+                            egui::Slider::new(&mut state.day_night_speed, 0.01..=1.0)
+                                .text("Speed")
+                                .logarithmic(true)
+                                .fixed_decimals(2),
+                        );
+                    }
+                    ui.add(
+                        egui::Slider::new(&mut state.day_factor, 0.0..=1.0)
+                            .text("Day factor")
+                            .fixed_decimals(2),
                     );
                 });
 
@@ -221,25 +238,26 @@ pub fn draw_ui(ctx: &egui::Context, state: &mut UiState) {
                     }
                 });
 
-                // ── Day / Night ──
-                ui.collapsing(RichText::new("🌗  Day / Night").size(15.0), |ui| {
-                    ui.checkbox(&mut state.day_night_auto, "Auto cycle");
-                    if state.day_night_auto {
-                        ui.add(
-                            egui::Slider::new(&mut state.day_night_speed, 0.01..=1.0)
-                                .text("Speed")
-                                .logarithmic(true)
-                                .fixed_decimals(2),
-                        );
-                    }
-                    ui.add(
-                        egui::Slider::new(&mut state.day_factor, 0.0..=1.0)
-                            .text("Day factor")
-                            .fixed_decimals(2),
+                // ── Fog ──
+                ui.collapsing(RichText::new("🌫  Fog").size(15.0), |ui| {
+                    ui.checkbox(&mut state.fog_enabled, "Enable fog");
+                    ui.add_enabled(
+                        state.fog_enabled,
+                        egui::Slider::new(&mut state.fog_density, 0.02..=0.1)
+                            .text("Density")
+                            .fixed_decimals(3),
                     );
                 });
 
-                // ── Spotlight ──
+                // ── Shading ──
+                ui.collapsing(RichText::new("🎨  Shading").size(15.0), |ui| {
+                    ui.horizontal(|ui| {
+                        ui.selectable_value(&mut state.use_phong, true, "Phong");
+                        ui.selectable_value(&mut state.use_phong, false, "Gouraud");
+                    });
+                });
+
+                // ── Spotlight Aim ──
                 ui.collapsing(RichText::new("🔦  Spotlight Aim").size(15.0), |ui| {
                     ui.add(
                         egui::Slider::new(&mut state.spotlight_yaw_offset, -1.0..=1.0)
@@ -255,6 +273,60 @@ pub fn draw_ui(ctx: &egui::Context, state: &mut UiState) {
                         state.spotlight_yaw_offset = 0.0;
                         state.spotlight_pitch_offset = 0.0;
                     }
+                });
+
+                // ── Lights ──
+                ui.collapsing(RichText::new("💡  Lights").size(15.0), |ui| {
+                    // Point light
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut state.light_point_enabled, "");
+                        ui.label("Point light (warm)");
+                    });
+                    ui.add_enabled(
+                        state.light_point_enabled,
+                        egui::Slider::new(&mut state.light_point_intensity, 0.0..=2.0)
+                            .text("Intensity")
+                            .fixed_decimals(2),
+                    );
+                    ui.separator();
+
+                    // Spotlight (torus)
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut state.light_spot_enabled, "");
+                        ui.label("Spotlight (blue)");
+                    });
+                    ui.add_enabled(
+                        state.light_spot_enabled,
+                        egui::Slider::new(&mut state.light_spot_intensity, 0.0..=2.0)
+                            .text("Intensity")
+                            .fixed_decimals(2),
+                    );
+                    ui.separator();
+
+                    // Sun / directional
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut state.light_sun_enabled, "");
+                        ui.label("Sun (directional)");
+                    });
+                    ui.add_enabled(
+                        state.light_sun_enabled,
+                        egui::Slider::new(&mut state.light_sun_intensity, 0.0..=2.0)
+                            .text("Intensity")
+                            .fixed_decimals(2),
+                    );
+                    ui.separator();
+
+                    // Headlights
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut state.light_headlights_enabled, "");
+                        ui.label("Headlights");
+                    });
+                    ui.add_enabled(
+                        state.light_headlights_enabled,
+                        egui::Slider::new(&mut state.light_headlights_intensity, 0.0..=2.0)
+                            .text("Intensity")
+                            .fixed_decimals(2),
+                    );
                 });
 
                 // ── Grid ──

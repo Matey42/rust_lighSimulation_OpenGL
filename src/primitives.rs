@@ -52,13 +52,14 @@ pub fn generate_sphere(radius: f32, stacks: u32, sectors: u32) -> (Vec<Vertex>, 
             let first = i * (sectors + 1) + j;
             let second = first + sectors + 1;
 
+            // Reversed winding to match the Y↔Z swizzle (which flips handedness)
             indices.push(first);
-            indices.push(second);
             indices.push(first + 1);
+            indices.push(second);
 
             indices.push(first + 1);
-            indices.push(second);
             indices.push(second + 1);
+            indices.push(second);
         }
     }
 

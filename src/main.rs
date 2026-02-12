@@ -21,6 +21,7 @@ use winit::keyboard::{Key, NamedKey};
 
 use camera::{Camera, FppCamera, FreeCamera, StaticCamera, TppCamera, TrackingCamera};
 use grid::Grid;
+use light::Light;
 use light_markers::LightMarkers;
 use renderer::Renderer;
 use scene::Scene;
@@ -62,6 +63,7 @@ fn main() {
     let mut tpp_cam = TppCamera::new(Vector3::new(0.0, 2.0, 5.0), 3.0);
     let mut fpp_cam = FppCamera::new(Vector3::new(0.0, 0.2, 0.55));
     let mut free_cam = FreeCamera::new(Point3::new(12.0, 10.0, 12.0));
+    let mut prev_camera: usize = 0;
 
     let mut last_frame = Instant::now();
 
@@ -268,6 +270,36 @@ fn main() {
                             // ── Render ──
                             renderer.use_phong = state.use_phong;
 
+                            // When switching to free cam, inherit position & look direction
+                            if state.active_camera == 4 && prev_camera != 4 {
+                                let prev_pos: Point3<f32> = match prev_camera {
+                                    0 => static_cam.position(),
+                                    1 => tracking_cam.position(),
+                                    2 => tpp_cam.position(),
+                                    3 => fpp_cam.position(),
+                                    _ => free_cam.eye,
+                                };
+                                // Compute the look-at target of the previous camera
+                                let prev_view = match prev_camera {
+                                    0 => static_cam.view_matrix(),
+                                    1 => tracking_cam.view_matrix(),
+                                    2 => tpp_cam.view_matrix(),
+                                    3 => fpp_cam.view_matrix(),
+                                    _ => free_cam.view_matrix(),
+                                };
+                                // Extract forward direction from view matrix (row 2 = -forward)
+                                let fwd = cgmath::Vector3::new(
+                                    -prev_view.x.z, -prev_view.y.z, -prev_view.z.z,
+                                );
+                                free_cam.eye = prev_pos;
+                                free_cam.yaw = fwd.z.atan2(fwd.x);
+                                free_cam.pitch = fwd.y.asin().clamp(
+                                    -89.0_f32.to_radians(),
+                                    89.0_f32.to_radians(),
+                                );
+                            }
+                            prev_camera = state.active_camera;
+
                             let view: Matrix4<f32> = match state.active_camera {
                                 0 => static_cam.view_matrix(),
                                 1 => tracking_cam.view_matrix(),
@@ -293,11 +325,42 @@ fn main() {
                                 0.1  + 0.6  * df,
                             ];
 
-                            // Collect all lights (scene + moving object headlights)
-                            let mut all_lights: Vec<_> = scene.lights.clone();
-                            all_lights.extend(
-                                scene.moving_object.spotlights.iter().cloned(),
-                            );
+                            // Collect lights with on/off and intensity controls
+                            let mut all_lights: Vec<Light> = Vec::new();
+                            // 0: Point light
+                            if state.light_point_enabled {
+                                let mut l = scene.lights[0].clone();
+                                let s = state.light_point_intensity;
+                                l.diffuse = [l.diffuse[0]*s, l.diffuse[1]*s, l.diffuse[2]*s];
+                                l.specular = [l.specular[0]*s, l.specular[1]*s, l.specular[2]*s];
+                                all_lights.push(l);
+                            }
+                            // 1: Fixed spot
+                            if state.light_spot_enabled {
+                                let mut l = scene.lights[1].clone();
+                                let s = state.light_spot_intensity;
+                                l.diffuse = [l.diffuse[0]*s, l.diffuse[1]*s, l.diffuse[2]*s];
+                                l.specular = [l.specular[0]*s, l.specular[1]*s, l.specular[2]*s];
+                                all_lights.push(l);
+                            }
+                            // 2: Sun (directional)
+                            if state.light_sun_enabled {
+                                let mut l = scene.lights[2].clone();
+                                let s = state.light_sun_intensity;
+                                l.diffuse = [l.diffuse[0]*s, l.diffuse[1]*s, l.diffuse[2]*s];
+                                l.specular = [l.specular[0]*s, l.specular[1]*s, l.specular[2]*s];
+                                all_lights.push(l);
+                            }
+                            // Headlights
+                            if state.light_headlights_enabled {
+                                for hl in &scene.moving_object.spotlights {
+                                    let mut l = hl.clone();
+                                    let s = state.light_headlights_intensity;
+                                    l.diffuse = [l.diffuse[0]*s, l.diffuse[1]*s, l.diffuse[2]*s];
+                                    l.specular = [l.specular[0]*s, l.specular[1]*s, l.specular[2]*s];
+                                    all_lights.push(l);
+                                }
+                            }
 
                             let ambient_strength =
                                 0.15 + 0.85 * state.day_factor;
@@ -441,11 +504,11 @@ fn handle_key(key: &Key, state: &mut UiState) {
                 println!("[Fog] {}", if state.fog_enabled { "ON" } else { "OFF" });
             }
             "+" | "=" => {
-                state.fog_density = (state.fog_density + 0.005).min(0.2);
+                state.fog_density = (state.fog_density + 0.005).min(0.1);
                 println!("[Fog density] {:.3}", state.fog_density);
             }
             "-" => {
-                state.fog_density = (state.fog_density - 0.005).max(0.0);
+                state.fog_density = (state.fog_density - 0.005).max(0.02);
                 println!("[Fog density] {:.3}", state.fog_density);
             }
             "n" | "N" => {
