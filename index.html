@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080b12">
+  <meta name="description" content="An interactive WebGL light and shading laboratory.">
+  <title>GK4 — 3D Lighting Simulation</title>
+  <link rel="stylesheet" href="./styles.css?v=3">
+</head>
+<body>
+  <main id="app">
+    <canvas id="scene" aria-label="Interactive 3D lighting scene"></canvas>
+
+    <header class="topbar">
+      <div class="top-actions">
+        <button id="pause-button" class="icon-button" type="button" title="Toggle animation/manual drive" aria-label="Toggle animation or manual drive">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+        </button>
+        <button id="panel-button" class="icon-button" type="button" title="Toggle control panel" aria-label="Toggle control panel">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <aside id="panel" class="panel" aria-label="Scene controls">
+      <div class="panel-heading">
+        <div><span class="eyebrow">LIVE CONTROLS</span><h1>Scene setup</h1></div>
+        <button id="close-panel" class="close-button" type="button" aria-label="Close panel">×</button>
+      </div>
+
+      <div class="panel-scroll">
+        <section class="control-section open">
+          <button class="section-title" type="button"><span>Camera</span><b>−</b></button>
+          <div class="section-body">
+            <div class="segmented five" id="camera-control">
+              <button class="active" data-value="0" title="Static camera">01</button>
+              <button data-value="1" title="Tracking camera">02</button>
+              <button data-value="2" title="Third-person camera">03</button>
+              <button data-value="3" title="First-person camera">04</button>
+              <button data-value="4" title="Free camera">05</button>
+            </div>
+            <p id="camera-label" class="control-note"><span>STATIC</span> Overview camera</p>
+            <div id="free-camera-options" hidden>
+              <label class="range-row"><span>Move speed <output id="free-speed-value">8.0</output></span><input id="free-speed" type="range" min="1" max="30" step="0.5" value="8"></label>
+              <label class="range-row compact"><span>Look sensitivity <output id="free-sensitivity-value">0.30</output></span><input id="free-sensitivity" type="range" min="0.05" max="1" step="0.01" value="0.3"></label>
+              <p class="hint">WASD + Q/E to move · drag to look</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="control-section open">
+          <button class="section-title" type="button"><span>Environment</span><b>−</b></button>
+          <div class="section-body">
+            <label class="range-row"><span>Time of day <output id="day-value">80%</output></span><input id="day-factor" type="range" min="0" max="1" step="0.01" value="0.8"></label>
+            <label class="switch-row"><span><strong>Auto cycle</strong><small>Animate day and night</small></span><input id="day-auto" type="checkbox" checked><i></i></label>
+            <label class="range-row compact"><span>Cycle speed <output id="day-speed-value">0.15</output></span><input id="day-speed" type="range" min="0.01" max="1" step="0.01" value="0.15"></label>
+            <label class="switch-row"><span><strong>Atmospheric fog</strong><small>Distance-based falloff</small></span><input id="fog-enabled" type="checkbox" checked><i></i></label>
+            <label class="range-row compact"><span>Fog density <output id="fog-value">0.020</output></span><input id="fog-density" type="range" min="0" max="0.1" step="0.001" value="0.02"></label>
+          </div>
+        </section>
+
+        <section class="control-section open">
+          <button class="section-title" type="button"><span>Rendering</span><b>−</b></button>
+          <div class="section-body">
+            <div class="segmented" id="shading-control">
+              <button class="active" data-value="phong">PHONG</button>
+              <button data-value="gouraud">GOURAUD</button>
+            </div>
+            <label class="switch-row"><span><strong>Normal maps</strong><small>Red and large spheres</small></span><input id="normal-maps" type="checkbox"><i></i></label>
+            <label class="switch-row"><span><strong>Ground grid</strong><small>World-space reference</small></span><input id="grid-visible" type="checkbox" checked><i></i></label>
+            <label class="range-row compact"><span>Grid size <output id="grid-size-value">1.00</output></span><input id="grid-size" type="range" min="0.25" max="5" step="0.05" value="1"></label>
+            <label class="range-row compact"><span>Sub-grid <output id="grid-sub-value">0.25</output></span><input id="grid-sub" type="range" min="0.05" max="2" step="0.05" value="0.25"></label>
+            <label class="range-row compact"><span>Fade radius <output id="grid-fade-value">60</output></span><input id="grid-fade" type="range" min="10" max="200" step="1" value="60"></label>
+            <label class="range-row compact"><span>Line width <output id="grid-line-value">0.020</output></span><input id="grid-line" type="range" min="0.005" max="0.1" step="0.001" value="0.02"></label>
+          </div>
+        </section>
+
+        <section class="control-section open">
+          <button class="section-title" type="button"><span>Lights</span><b>−</b></button>
+          <div class="section-body light-list">
+            <label class="light-row"><em class="light-dot warm"></em><span><strong>Key light</strong><small>POINT · WARM</small></span><input id="point-enabled" type="checkbox" checked><i></i></label>
+            <label class="range-row mini"><input id="point-intensity" type="range" min="0" max="2" step="0.01" value="1"></label>
+            <label class="light-row"><em class="light-dot cool"></em><span><strong>Blue spotlight</strong><small>SPOT · FIXED</small></span><input id="spot-enabled" type="checkbox" checked><i></i></label>
+            <label class="range-row mini"><input id="spot-intensity" type="range" min="0" max="2" step="0.01" value="1"></label>
+            <label class="light-row"><em class="light-dot sun"></em><span><strong>Sun</strong><small>DIRECTIONAL</small></span><input id="sun-enabled" type="checkbox" checked><i></i></label>
+            <label class="range-row mini"><input id="sun-intensity" type="range" min="0" max="2" step="0.01" value="1"></label>
+            <label class="light-row"><em class="light-dot head"></em><span><strong>Headlights</strong><small>2 × MOVING SPOT</small></span><input id="head-enabled" type="checkbox" checked><i></i></label>
+            <label class="range-row mini"><input id="head-intensity" type="range" min="0" max="2" step="0.01" value="1"></label>
+            <div class="dual-range">
+              <label class="range-row compact"><span>Aim yaw</span><input id="aim-yaw" type="range" min="-1" max="1" step="0.01" value="0"></label>
+              <label class="range-row compact"><span>Aim pitch</span><input id="aim-pitch" type="range" min="-1" max="1" step="0.01" value="0"></label>
+            </div>
+            <button id="reset-aim" class="text-button" type="button">Reset spotlight aim</button>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <button class="section-title" type="button"><span>Advanced</span><b>+</b></button>
+          <div class="section-body">
+            <label class="switch-row"><span><strong>Manual drive</strong><small>W/S drive · A/D steer</small></span><input id="manual-drive" type="checkbox"><i></i></label>
+            <label class="range-row compact"><span>Drive speed <output id="drive-speed-value">5.0</output></span><input id="drive-speed" type="range" min="1" max="20" step="0.5" value="5"></label>
+            <label class="range-row compact"><span>Turn speed <output id="turn-speed-value">2.0</output></span><input id="turn-speed" type="range" min="0.5" max="5" step="0.1" value="2"></label>
+            <label class="switch-row"><span><strong>Detailed car</strong><small id="car-status">Load 16 MB model on demand</small></span><input id="show-car" type="checkbox"><i></i></label>
+          </div>
+        </section>
+      </div>
+
+      <footer class="panel-footer">
+        <span><kbd>1—5</kbd> cameras</span><span><kbd>P</kbd> shading</span><span><kbd>F</kbd> fog</span><span><kbd>Tab</kbd> panel</span>
+      </footer>
+    </aside>
+
+    <div class="scene-labels" aria-hidden="true">
+      <span id="label-key" class="scene-tag"><i class="warm"></i>KEY LIGHT</span>
+      <span id="label-spot" class="scene-tag"><i class="cool"></i>SPOT</span>
+      <span id="label-mover" class="scene-tag"><i class="head"></i>MOVER</span>
+    </div>
+
+    <div class="bottom-hud">
+      <div class="metric"><span>FRAME</span><strong id="frame-time">0.0 <small>ms</small></strong></div>
+      <div class="metric"><span>FPS</span><strong id="fps">60</strong></div>
+      <div class="divider"></div>
+      <p><b id="camera-hud">STATIC CAMERA</b><span id="control-hint">Drag to orbit · scroll to zoom</span></p>
+    </div>
+
+    <div id="loading" class="loading-screen">
+      <div class="loader-mark"><i></i><i></i><i></i></div>
+      <p>INITIALIZING WEBGL</p>
+    </div>
+
+    <div id="error" class="error-screen" hidden>
+      <div><span>WEBGL2 UNAVAILABLE</span><h2>This browser cannot start the renderer.</h2><p>Try a current version of Chrome, Firefox, Edge, or Safari with hardware acceleration enabled.</p></div>
+    </div>
+  </main>
+  <script type="module" src="./web/app.js?v=3"></script>
+</body>
+</html>

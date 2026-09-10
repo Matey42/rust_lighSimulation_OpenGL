@@ -1,12 +1,58 @@
-# GK4 — 3D Scene Application
+# GK4 — 3D Lighting Simulation
 
-A real-time 3D scene renderer written in **Rust** using **glium** (OpenGL 3.3 core) with an **egui** control panel.
+A real-time 3D lighting scene available as both a **WebGL2 web app** and the original **Rust/OpenGL desktop app**.
+
+## Web app
+
+The browser version is a dependency-free static site. It preserves the scene's camera modes, Phong and Gouraud shading, fog, animated day/night lighting, normal maps, moving headlights, manual driving, and optional car model. It runs directly on GitHub Pages—there is no server-side component and no absolute asset paths.
+
+### Run locally
+
+ES modules and assets need an HTTP origin, so serve the repository instead of opening `index.html` directly:
+
+```bash
+python3 -m http.server 8080
+```
+
+Then open <http://localhost:8080>. A current browser with WebGL2 support is required.
+
+### Deploy to GitHub Pages
+
+The workflow in `.github/workflows/deploy-pages.yml` publishes the site after every push to `main` or `master`.
+
+1. Push this repository to GitHub.
+2. Open **Settings → Pages** in the repository.
+3. Set **Source** to **GitHub Actions**.
+4. Run the workflow, or push to the default branch.
+
+The generated Pages artifact contains only the web entry point, stylesheet, browser renderer, and assets; Rust build output is excluded.
+
+### Web controls
+
+| Input | Action |
+|------|---------|
+| **1–5** | Switch camera |
+| **Drag / wheel** | Orbit and zoom the overview camera |
+| **WASD + Q/E** | Move the free camera |
+| **WASD** | Drive while manual mode is enabled |
+| **P / F** | Toggle shading / fog |
+| **N / O / L** | Toggle auto cycle / increase day / increase night |
+| **Arrow keys** | Aim headlights, or look around in the free camera |
+| **+ / −** | Adjust fog density |
+| **Space** | Toggle animation / manual driving |
+| **Tab** | Show or hide the control panel |
+
+---
+
+## Desktop app
+
+The original implementation is written in **Rust** using **glium** (OpenGL 3.3 core) with an **egui** control panel.
 
 ---
 
 ## Table of Contents
 
-1. [Getting Started](#getting-started)
+1. [Desktop Getting Started](#getting-started)
 2. [Controls](#controls)
 3. [Lighting Model — View-Space Calculation](#lighting-model--view-space-calculation)
 4. [Phong Shading vs Gouraud Shading](#phong-shading-vs-gouraud-shading)
@@ -214,4 +260,3 @@ Two normal maps can be toggled from the panel:
 |--------|----------------|
 | Sphere (red, front-right) | `assets/brick_normalmap.png` |
 | BigSphere (grey, far back) | `assets/normal_map.jpg` |
-
